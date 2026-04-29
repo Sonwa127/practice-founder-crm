@@ -11,9 +11,9 @@ export interface OrgUser {
   email: string | null
   role: string | null
   isLoading: boolean
-  isAdmin: boolean    // role === 'admin' — full access to everything
-  isMember: boolean   // role === 'member' — basic access
-  canViewAll: boolean // alias for isAdmin, used in page-level logic
+  isAdmin: boolean
+  isMember: boolean
+  canViewAll: boolean
 }
 
 const supabase = createBrowserClient(
@@ -38,14 +38,12 @@ export function useOrgUser(): OrgUser {
   useEffect(() => {
     const load = async () => {
       try {
-        // 1. Get logged-in user from Supabase auth
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) {
           setState(s => ({ ...s, isLoading: false }))
           return
         }
 
-        // 2. Get role from users table
         let role: string | null = null
         try {
           const { data: userData } = await supabase
@@ -54,17 +52,13 @@ export function useOrgUser(): OrgUser {
             .eq('id', user.id)
             .single()
           role = userData?.role ?? null
-        } catch {
-          // users table query failed — role stays null, app still loads
-        }
+        } catch {}
 
-        // 3. Get employee record — org_id lives here
-        //    Try linked_user first, fall back to email match
-        let employee: { id: string; org_id: string; name: string } | null = null
+        let employee: { id: string; org_id: string } | null = null
         try {
           const { data } = await supabase
             .from('employees')
-            .select('id, org_id, name')
+            .select('id, org_id')
             .eq('linked_user', user.id)
             .single()
           employee = data
@@ -72,35 +66,31 @@ export function useOrgUser(): OrgUser {
           try {
             const { data } = await supabase
               .from('employees')
-              .select('id, org_id, name')
+              .select('id, org_id')
               .eq('email', user.email!)
               .single()
             employee = data
-          } catch {
-            // employee not found — continue with nulls
-          }
+          } catch {}
         }
 
-        // 4. Derive role booleans — simple: admin or member
-        const isAdmin   = role === 'admin'
-        const isMember  = role === 'member'
+        const isAdmin    = role === 'admin'
+        const isMember   = role === 'member'
         const canViewAll = isAdmin
 
         setState({
-          userId:      user.id,
-          orgId:       employee?.org_id ?? '',
-          employeeId:  employee?.id ?? null,
-          employeeName: employee?.name ?? user.email ?? null,
-          email:       user.email ?? null,
+          userId:       user.id,
+          orgId:        employee?.org_id ?? '',
+          employeeId:   employee?.id ?? null,
+          employeeName: user.email ?? null,
+          email:        user.email ?? null,
           role,
-          isLoading:   false,
+          isLoading:    false,
           isAdmin,
           isMember,
           canViewAll,
         })
 
       } catch {
-        // Safety net — always exit loading state even on unexpected errors
         setState(s => ({ ...s, isLoading: false }))
       }
     }
@@ -114,7 +104,6 @@ export function useOrgUser(): OrgUser {
   return state
 }
 
-// ── Helper: scoped supabase client (RLS handles org filtering automatically)
 export function useSupabase() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
