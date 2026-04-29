@@ -191,7 +191,7 @@ function NewIdeaModal({ orgId, onClose, onCreated }: {
 export default function IdeasPage() {
   const supabase = createClient()
   const queryClient = useQueryClient()
-  const { orgId, canViewAll, isPracticeManager, isPracticeFounder} = useOrgUser()
+  const { orgId, canViewAll } = useOrgUser()
   const { resolveName } = useEmployeeNames(orgId ?? undefined)
   const isManager = canViewAll
 

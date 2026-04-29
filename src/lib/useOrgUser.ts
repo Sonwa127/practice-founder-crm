@@ -11,13 +11,9 @@ export interface OrgUser {
   email: string | null
   role: string | null
   isLoading: boolean
-  // Role booleans — generic, no tenant-specific names
-  isPracticeFounder: boolean
-  isPracticeManager: boolean
-  isOperationsManager: boolean
-  isReceptionist: boolean
-  isBillingStaff: boolean
-  canViewAll: boolean   // practice_founder | practice_manager | dr_evans (legacy)
+  isAdmin: boolean    // role === 'admin' — full access to everything
+  isMember: boolean   // role === 'member' — basic access
+  canViewAll: boolean // alias for isAdmin, used in page-level logic
 }
 
 const supabase = createBrowserClient(
@@ -34,11 +30,8 @@ export function useOrgUser(): OrgUser {
     email: null,
     role: null,
     isLoading: true,
-    isPracticeFounder: false,
-    isPracticeManager: false,
-    isOperationsManager: false,
-    isReceptionist: false,
-    isBillingStaff: false,
+    isAdmin: false,
+    isMember: false,
     canViewAll: false,
   })
 
@@ -52,7 +45,7 @@ export function useOrgUser(): OrgUser {
           return
         }
 
-        // 2. Get role from users table (role lives here, not employees)
+        // 2. Get role from users table
         let role: string | null = null
         try {
           const { data: userData } = await supabase
@@ -88,29 +81,21 @@ export function useOrgUser(): OrgUser {
           }
         }
 
-        // 4. Derive role booleans
-        const isPracticeFounder   = role === 'practice_founder'
-        const isPracticeManager   = role === 'practice_manager'
-        const isOperationsManager = role === 'operations_manager'
-        const isReceptionist      = role === 'receptionist'
-        const isBillingStaff      = role === 'billing_staff'
-        const canViewAll          = role === 'practice_founder'
-                                  || role === 'practice_manager'
-                                  || role === 'dr_evans' // legacy role — still supported
+        // 4. Derive role booleans — simple: admin or member
+        const isAdmin   = role === 'admin'
+        const isMember  = role === 'member'
+        const canViewAll = isAdmin
 
         setState({
-          userId:             user.id,
-          orgId:              employee?.org_id ?? '',
-          employeeId:         employee?.id ?? null,
-          employeeName:       employee?.name ?? user.email ?? null,
-          email:              user.email ?? null,
+          userId:      user.id,
+          orgId:       employee?.org_id ?? '',
+          employeeId:  employee?.id ?? null,
+          employeeName: employee?.name ?? user.email ?? null,
+          email:       user.email ?? null,
           role,
-          isLoading:          false,
-          isPracticeFounder,
-          isPracticeManager,
-          isOperationsManager,
-          isReceptionist,
-          isBillingStaff,
+          isLoading:   false,
+          isAdmin,
+          isMember,
           canViewAll,
         })
 

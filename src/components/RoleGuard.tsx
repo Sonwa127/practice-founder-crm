@@ -2,12 +2,12 @@
 
 // src/components/RoleGuard.tsx
 // Drop this on any page that needs role restriction.
-// It reads the role from useOrgUser and redirects if not allowed.
+// admin role always bypasses every guard.
 //
 // Usage:
 //   export default function DashboardPage() {
 //     return (
-//       <RoleGuard allow={['dr_evans', 'operations_manager']}>
+//       <RoleGuard allow={['admin']}>
 //         <ActualPageContent />
 //       </RoleGuard>
 //     )
@@ -19,12 +19,8 @@ import { useOrgUser } from '@/lib/useOrgUser'
 
 // All possible roles in the system
 export type PracticeRole =
-  | 'dr_evans'
-  | 'operations_manager'
-  | 'receptionist'
-  | 'billing_staff'
-  | 'practice_manager'
-  | 'practice_founder'
+  | 'admin'
+  | 'member'
 
 interface RoleGuardProps {
   /** Roles that ARE allowed to see this page */
@@ -42,15 +38,16 @@ export default function RoleGuard({
   const router = useRouter()
   const { role, isLoading } = useOrgUser()
 
+  const isAllowed = role === 'admin' || allow.includes(role as PracticeRole)
+
   useEffect(() => {
     if (isLoading) return
-    // No role means unauthenticated or no employee record
-    if (!role || !allow.includes(role as PracticeRole)) {
+    if (!role || !isAllowed) {
       router.replace(redirectTo)
     }
-  }, [role, isLoading, allow, redirectTo, router])
+  }, [role, isLoading, isAllowed, redirectTo, router])
 
-  // Still loading — show nothing to prevent flash
+  // Still loading — show spinner to prevent flash
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full bg-[#1a1410]">
@@ -60,7 +57,7 @@ export default function RoleGuard({
   }
 
   // Role not allowed — show nothing while redirect happens
-  if (!role || !allow.includes(role as PracticeRole)) {
+  if (!role || !isAllowed) {
     return null
   }
 

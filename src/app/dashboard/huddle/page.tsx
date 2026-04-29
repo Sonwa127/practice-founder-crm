@@ -203,7 +203,7 @@ function NewHuddleModal({ orgId, onClose, onCreated }: {
 export default function HuddlePage() {
   const supabase = createClient()
   const queryClient = useQueryClient()
-  const { orgId,isPracticeManager, isPracticeFounder, canViewAll } = useOrgUser()
+  const { orgId, canViewAll } = useOrgUser()
   const { resolveName } = useEmployeeNames(orgId ?? undefined)
   const canCreate = canViewAll
 
