@@ -974,7 +974,7 @@ function WeeklyFinancialsContent() {
 
 export default function WeeklyFinancialsPage() {
   return (
-    <RoleGuard allow={['dr_evans', 'operations_manager', 'practice_founder', 'practice_manager']}>
+    <RoleGuard allow={['admin']}>
       <WeeklyFinancialsContent />
     </RoleGuard>
   );

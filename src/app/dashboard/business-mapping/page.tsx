@@ -325,7 +325,7 @@ function BusinessMappingContent() {
 
 export default function BusinessMappingPage() {
   return (
-    <RoleGuard allow={['dr_evans', 'practice_founder', 'practice_manager', 'operations_manager']}>
+    <RoleGuard allow={['admin']}>
       <BusinessMappingContent />
     </RoleGuard>
   )

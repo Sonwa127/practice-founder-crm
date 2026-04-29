@@ -599,7 +599,7 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <RoleGuard allow={['dr_evans', 'operations_manager', 'practice_founder', 'practice_manager']}>
+    <RoleGuard allow={['admin']}>
       <DashboardContent />
     </RoleGuard>
   );

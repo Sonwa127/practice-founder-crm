@@ -47,8 +47,8 @@ interface NavSection {
   items: NavItem[]
 }
 
-const OWNER_AND_OPS: PracticeRole[] = ['dr_evans', 'operations_manager', 'practice_founder', 'practice_manager']
-const OWNER_ONLY: PracticeRole[]    = ['dr_evans', 'practice_founder', 'practice_manager']
+const OWNER_AND_OPS: PracticeRole[] = ['admin']
+const OWNER_ONLY: PracticeRole[]    = ['admin']
 
 const NAV: NavSection[] = [
   {
@@ -69,7 +69,7 @@ const NAV: NavSection[] = [
         href: '/dashboard/billing',
         label: 'Daily Billing & Claims',
         icon: FileText,
-        visibleTo: ['billing_staff', 'dr_evans', 'operations_manager', 'practice_founder', 'practice_manager'],
+        visibleTo: ['admin']
       },
       {
         href: '/dashboard/financials',
