@@ -58,7 +58,7 @@ const NAV: NavSection[] = [
         href: '/dashboard',
         label: 'Dashboard',
         icon: LayoutDashboard,
-        visibleTo: OWNER_AND_OPS,   // ← RESTRICTED: owner + ops manager only
+        visibleTo: OWNER_AND_OPS,
       },
     ],
   },
@@ -75,13 +75,12 @@ const NAV: NavSection[] = [
         href: '/dashboard/financials',
         label: 'Weekly Financial Reports',
         icon: BarChart3,
-        visibleTo: OWNER_AND_OPS,   // ← RESTRICTED: owner + ops manager only
+        visibleTo: OWNER_AND_OPS,
       },
       {
         href: '/dashboard/daily-tracker',
         label: 'Daily Tracker',
         icon: Activity,
-        // All roles can submit/view daily tracker
       },
     ],
   },
@@ -107,11 +106,11 @@ const NAV: NavSection[] = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Sidebar() {
-  const pathname           = usePathname()
+  const pathname             = usePathname()
   const { dark, toggleDark } = useTheme()
-  const router             = useRouter()
+  const router               = useRouter()
   const { role, employeeName, isLoading } = useOrgUser()
-  const supabase           = createBrowserClient(
+  const supabase             = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
@@ -134,19 +133,15 @@ export default function Sidebar() {
 
   // Check if a nav item is visible to the current role
   const canSee = (visibleTo?: PracticeRole[]) => {
-    if (!visibleTo) return true          // no restriction = everyone sees it
+    if (!visibleTo) return true
     if (!role) return false
     return visibleTo.includes(role as PracticeRole)
   }
 
-  // Role display label for the identity pill
+  // Role display label
   const roleLabel: Record<string, string> = {
-    dr_evans:           'Practice Owner',
-    operations_manager: 'Operations Manager',
-    receptionist:       'Receptionist',
-    billing_staff:      'Billing Staff',
-    practice_manager:   'Practice Manager',
-    practice_founder:   'Practice Founder',
+    admin:  'Admin',
+    member: 'Staff',
   }
 
   return (
@@ -166,7 +161,7 @@ export default function Sidebar() {
         </p>
       </div>
 
-      {/* Identity pill — shows who is logged in */}
+      {/* Identity pill */}
       {!isLoading && employeeName && (
         <div className={`mx-3 mt-3 px-3 py-2 rounded-xl border ${dark ? 'bg-[#1e1409] border-[#2e2016]' : 'bg-amber-100 border-amber-200'}`}>
           <p className={`text-xs font-semibold truncate ${dark ? 'text-white' : 'text-gray-900'}`}>
@@ -181,16 +176,13 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 mt-2">
         {NAV.map((section, si) => {
-          // Hide entire section if role-gated and user doesn't qualify
           if (!canSee(section.visibleTo)) return null
 
-          // Filter individual items by role
           const visibleItems = section.items.filter(item => canSee(item.visibleTo))
           if (visibleItems.length === 0) return null
 
           return (
             <div key={si} className={section.label ? 'mt-4' : ''}>
-              {/* Section header */}
               {section.label && (
                 <button
                   onClick={() => toggleSection(section.label!)}
@@ -205,7 +197,6 @@ export default function Sidebar() {
                 </button>
               )}
 
-              {/* Nav items */}
               {!collapsed[section.label ?? ''] && visibleItems.map(item => {
                 const active = isActive(item.href)
                 return (
