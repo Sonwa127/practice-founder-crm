@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { createBrowserClient } from '@supabase/ssr';
 import { useOrgUser } from '@/lib/useOrgUser';
 import { useEmployeeNames, resolveName } from '@/lib/useEmployeeNames';
-import RecordComments from '@/components/RecordComments';                // ← NEW
+import RecordComments from '@/components/RecordComments';
 import {
   Plus, Filter, Eye, EyeOff, GripVertical, ChevronDown, ChevronUp,
   X, Search, Settings2, RefreshCw, FileDown, FileUp, Pin, PinOff,
@@ -415,6 +415,7 @@ export default function DailyTrackerPage() {
 
   const orderedCols = [...columns.filter(c => c.pinned && c.visible), ...columns.filter(c => !c.pinned && c.visible)];
   const pinnedCount = columns.filter(c => c.pinned && c.visible).length;
+  // 40px checkbox + 40px expand button = 80px offset for first pinned column
   const pinnedLeft  = (ci: number) => 80 + orderedCols.slice(0, ci).filter(c => c.pinned).reduce((s, c) => s + c.width, 0);
 
   const onDragStart = (i: number) => { dragColIdx.current = i; };
@@ -740,14 +741,17 @@ export default function DailyTrackerPage() {
 
       {/* TABLE */}
       <div className="flex-1 overflow-auto min-h-0">
-        <table className="border-collapse" style={{ minWidth: orderedCols.reduce((s, c) => s + c.width, 60) + 'px' }}>
+        <table className="border-collapse" style={{ minWidth: orderedCols.reduce((s, c) => s + c.width, 80) + 'px' }}>
           <thead className="sticky top-0 z-10 bg-[#1e1409]">
             <tr>
+              {/* Checkbox column */}
               <th className="pf-sticky-checkbox w-10 px-2 border-b border-r border-[#2e2016]">
                 <input type="checkbox" checked={selectedRows.size === paginated.length && paginated.length > 0}
                   onChange={() => selectedRows.size === paginated.length ? setSelectedRows(new Set()) : setSelectedRows(new Set(paginated.map(r => r.id)))}
                   className="accent-[#c8843a] cursor-pointer" />
               </th>
+              {/* ── Expand button column header ── */}
+              <th className="pf-sticky-cell border-b border-r border-[#2e2016] w-8" style={{ left: 40 }} />
               {orderedCols.map((col, ci) => {
                 const left = col.pinned ? pinnedLeft(ci) : undefined;
                 const activeSortIdx = sorts.findIndex(s => s.column === col.key);
@@ -776,19 +780,26 @@ export default function DailyTrackerPage() {
             {groupKeys.map(gk => (
               <React.Fragment key={gk}>
                 {groupBy && (
-                  <tr><td colSpan={orderedCols.length + 2} className="px-4 py-1.5 text-xs font-semibold text-[#c8843a] uppercase tracking-wider border-b border-[#2e2016] bg-[#1e1409]/80"><Layers className="w-3 h-3 inline mr-1.5 opacity-60" />{gk} <span className="text-[#6b5a47] font-normal ml-1">({groups[gk].length})</span></td></tr>
+                  <tr><td colSpan={orderedCols.length + 3} className="px-4 py-1.5 text-xs font-semibold text-[#c8843a] uppercase tracking-wider border-b border-[#2e2016] bg-[#1e1409]/80"><Layers className="w-3 h-3 inline mr-1.5 opacity-60" />{gk} <span className="text-[#6b5a47] font-normal ml-1">({groups[gk].length})</span></td></tr>
                 )}
                 {groups[gk].map(row => (
-                  // ── CHANGE 1: onClick opens detail panel ──
                   <tr key={row.id} style={{ height: ROW_H[rowHeight] }}
                     onClick={() => setDetailRow(row)}
                     className={`border-b border-[#2a1c10] transition group/row cursor-pointer
                       ${selectedRows.has(row.id) ? 'bg-[#c8843a]/10 pf-row-selected' : 'hover:bg-[#221610]'}`}>
-                    {/* ── CHANGE 2: stopPropagation on checkbox ── */}
+                    {/* Checkbox — stops row click */}
                     <td className="pf-sticky-checkbox w-10 px-2 border-r border-[#2a1c10]" onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={selectedRows.has(row.id)}
                         onChange={() => setSelectedRows(p => { const n = new Set(p); n.has(row.id) ? n.delete(row.id) : n.add(row.id); return n; })}
                         className="accent-[#c8843a] cursor-pointer" />
+                    </td>
+                    {/* ── Expand button — sticky, visible on hover ── */}
+                    <td className="pf-sticky-cell w-8 border-r border-[#2a1c10]"
+                      style={{ left: 40 }}
+                      onClick={e => { e.stopPropagation(); setDetailRow(row); }}>
+                      <button className="opacity-0 group-hover/row:opacity-100 transition flex items-center justify-center w-full h-full text-[#6b5a47] hover:text-[#c8843a]">
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                     {orderedCols.map((col, ci) => {
                       const left = col.pinned ? pinnedLeft(ci) : undefined;
@@ -807,13 +818,15 @@ export default function DailyTrackerPage() {
               </React.Fragment>
             ))}
             {paginated.length === 0 && (
-              <tr><td colSpan={orderedCols.length + 2} className="text-center py-16 text-[#6b5a47] text-sm">No records match your filters.</td></tr>
+              <tr><td colSpan={orderedCols.length + 3} className="text-center py-16 text-[#6b5a47] text-sm">No records match your filters.</td></tr>
             )}
           </tbody>
 
           <tfoot className="sticky bottom-0 z-10 bg-[#1e1409]">
             <tr className="border-t-2 border-[#3a2a1a]">
               <td className="pf-sticky-checkbox w-10 px-2 border-r border-[#2e2016]" />
+              {/* ── Expand column placeholder in footer ── */}
+              <td className="pf-sticky-cell w-8 border-r border-[#2e2016]" style={{ left: 40 }} />
               {orderedCols.map((col, ci) => {
                 const left = col.pinned ? pinnedLeft(ci) : undefined;
                 return <td key={col.key} style={{ textAlign: col.align, ...(col.pinned ? { left } : {}) }} className={`px-3 py-2 border-r border-[#2e2016] ${col.pinned ? 'pf-sticky-cell' : 'bg-[#1e1409]'}`}>{renderTotals(col)}</td>;
@@ -842,7 +855,7 @@ export default function DailyTrackerPage() {
         </div>
       </div>
 
-      {/* DETAIL PANEL — with RecordComments */}
+      {/* DETAIL PANEL */}
       {detailRow && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDetailRow(null)} />
@@ -869,16 +882,9 @@ export default function DailyTrackerPage() {
                 </div>
               ))}
             </div>
-
-            {/* ── CHANGE 3: RecordComments ── */}
             {orgId && (
-              <RecordComments
-                recordId={detailRow.id}
-                tableName="daily_tracker"
-                orgId={orgId}
-              />
+              <RecordComments recordId={detailRow.id} tableName="daily_tracker" orgId={orgId} />
             )}
-
             <div className="px-5 py-3 border-t border-[#2e2016]">
               <button onClick={() => setDetailRow(null)} className="w-full py-2 rounded-md bg-[#c8843a] hover:bg-[#d9944a] text-white text-sm font-semibold transition">Close</button>
             </div>
@@ -902,8 +908,6 @@ export default function DailyTrackerPage() {
     </div>
   );
 }
-
-// ─── New Tracker Form — unchanged ─────────────────────────────────────────────
 
 function NewTrackerForm({ onSave, onCancel }: { onSave: (row: DailyTrackerRow) => void; onCancel: () => void }) {
   const [activeTab, setActiveTab] = useState<'receptionist' | 'dr_evans'>('receptionist');
