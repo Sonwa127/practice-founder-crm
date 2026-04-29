@@ -191,9 +191,9 @@ function NewIdeaModal({ orgId, onClose, onCreated }: {
 export default function IdeasPage() {
   const supabase = createClient()
   const queryClient = useQueryClient()
-  const { orgId, canViewAll, isPracticeManager, isPracticeFounder, isDrEvans } = useOrgUser()
+  const { orgId, canViewAll, isPracticeManager, isPracticeFounder} = useOrgUser()
   const { resolveName } = useEmployeeNames(orgId ?? undefined)
-  const isManager = canViewAll || isPracticeManager || isPracticeFounder || isDrEvans
+  const isManager = canViewAll
 
   const [search, setSearch]         = useState('')
   const [rowHeight, setRowHeight]   = useState<RowHeight>('medium')
