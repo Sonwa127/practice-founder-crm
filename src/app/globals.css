@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+.dark .main-content {
+  background-color: #0f0f0f;
+  color: #f5f5f5;
+}
+
+.main-content {
+  background-color: #fffbf5;
+  color: #1a1a1a;
+}
+
+/*
+  Sticky column fix — add to your globals.css
+  Fixes: pinned columns overlapping scrolling content, hover not working on pinned cells
+*/
+
+/* Base sticky cell — dark background, high z-index */
+.pf-sticky-cell {
+  position: sticky !important;
+  z-index: 20 !important;
+  background-color: #1e1409 !important;
+  /* Right-edge shadow to show separation */
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.5);
+  transition: background-color 0.1s ease;
+}
+
+/* Hover state — row hover changes pinned cell bg too */
+tr:hover .pf-sticky-cell {
+  background-color: #231610 !important;
+}
+
+/* Selected row state */
+tr.pf-row-selected .pf-sticky-cell {
+  background-color: rgba(200, 132, 58, 0.12) !important;
+}
+
+/* Sticky header cells — even higher z-index so they always win */
+thead .pf-sticky-cell {
+  z-index: 30 !important;
+  background-color: #1e1409 !important;
+}
+
+/* Sticky footer cells */
+tfoot .pf-sticky-cell {
+  z-index: 25 !important;
+  background-color: #1e1409 !important;
+}
+
+/* Checkbox column sticky — leftmost */
+.pf-sticky-checkbox {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 22 !important;
+  background-color: #1e1409 !important;
+  transition: background-color 0.1s ease;
+}
+
+tr:hover .pf-sticky-checkbox {
+  background-color: #231610 !important;
+}
+
+tr.pf-row-selected .pf-sticky-checkbox {
+  background-color: rgba(200, 132, 58, 0.12) !important;
+}
+
+thead .pf-sticky-checkbox,
+tfoot .pf-sticky-checkbox {
+  z-index: 32 !important;
+  background-color: #1e1409 !important;
+}
+
+/* Light mode overrides */
+.light .pf-sticky-cell,
+.light thead .pf-sticky-cell,
+.light tfoot .pf-sticky-cell,
+.light .pf-sticky-checkbox,
+.light thead .pf-sticky-checkbox,
+.light tfoot .pf-sticky-checkbox {
+  background-color: #fdf8f0 !important;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.1);
+}
+
+.light tr:hover .pf-sticky-cell,
+.light tr:hover .pf-sticky-checkbox {
+  background-color: #f5ede0 !important;
+}
