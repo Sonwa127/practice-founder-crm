@@ -416,7 +416,7 @@ export default function DailyTrackerPage() {
   const orderedCols = [...columns.filter(c => c.pinned && c.visible), ...columns.filter(c => !c.pinned && c.visible)];
   const pinnedCount = columns.filter(c => c.pinned && c.visible).length;
   // 40px checkbox + 40px expand button = 80px offset for first pinned column
-  const pinnedLeft  = (ci: number) => 80 + orderedCols.slice(0, ci).filter(c => c.pinned).reduce((s, c) => s + c.width, 0);
+  const pinnedLeft  = (ci: number) => 72 + orderedCols.slice(0, ci).filter(c => c.pinned).reduce((s, c) => s + c.width, 0);
 
   const onDragStart = (i: number) => { dragColIdx.current = i; };
   const onDragOver  = (e: React.DragEvent, i: number) => { e.preventDefault(); dragOverIdx.current = i; };
