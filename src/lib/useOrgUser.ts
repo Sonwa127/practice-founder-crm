@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect, useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 
@@ -15,7 +17,7 @@ export interface OrgUser {
   isOperationsManager: boolean
   isReceptionist: boolean
   isBillingStaff: boolean
-  canViewAll: boolean   // practice_founder | practice_manager | dr_evans
+  canViewAll: boolean   // practice_founder | practice_manager | dr_evans (legacy)
 }
 
 const supabase = createBrowserClient(
@@ -42,54 +44,80 @@ export function useOrgUser(): OrgUser {
 
   useEffect(() => {
     const load = async () => {
-      // 1. Get logged-in user from Supabase auth
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      try {
+        // 1. Get logged-in user from Supabase auth
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          setState(s => ({ ...s, isLoading: false }))
+          return
+        }
+
+        // 2. Get role from users table (role lives here, not employees)
+        let role: string | null = null
+        try {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+          role = userData?.role ?? null
+        } catch {
+          // users table query failed — role stays null, app still loads
+        }
+
+        // 3. Get employee record — org_id lives here
+        //    Try linked_user first, fall back to email match
+        let employee: { id: string; org_id: string; name: string } | null = null
+        try {
+          const { data } = await supabase
+            .from('employees')
+            .select('id, org_id, name')
+            .eq('linked_user', user.id)
+            .single()
+          employee = data
+        } catch {
+          try {
+            const { data } = await supabase
+              .from('employees')
+              .select('id, org_id, name')
+              .eq('email', user.email!)
+              .single()
+            employee = data
+          } catch {
+            // employee not found — continue with nulls
+          }
+        }
+
+        // 4. Derive role booleans
+        const isPracticeFounder   = role === 'practice_founder'
+        const isPracticeManager   = role === 'practice_manager'
+        const isOperationsManager = role === 'operations_manager'
+        const isReceptionist      = role === 'receptionist'
+        const isBillingStaff      = role === 'billing_staff'
+        const canViewAll          = role === 'practice_founder'
+                                  || role === 'practice_manager'
+                                  || role === 'dr_evans' // legacy role — still supported
+
+        setState({
+          userId:             user.id,
+          orgId:              employee?.org_id ?? '',
+          employeeId:         employee?.id ?? null,
+          employeeName:       employee?.name ?? user.email ?? null,
+          email:              user.email ?? null,
+          role,
+          isLoading:          false,
+          isPracticeFounder,
+          isPracticeManager,
+          isOperationsManager,
+          isReceptionist,
+          isBillingStaff,
+          canViewAll,
+        })
+
+      } catch {
+        // Safety net — always exit loading state even on unexpected errors
         setState(s => ({ ...s, isLoading: false }))
-        return
       }
-
-      // 2. Get role from users table (role lives here, not employees)
-      const { data: userData } = await supabase
-        .from('users')
-        .select('role, org_id')
-        .eq('id', user.id)
-        .single()
-
-      const role = userData?.role ?? null
-
-      // 3. Get employee record via linked_user
-      const { data: employee } = await supabase
-        .from('employees')
-        .select('id, name, email')
-        .eq('linked_user', user.id)
-        .single()
-
-      // 4. Derive role booleans — canViewAll covers all full-access roles
-      const isPracticeFounder   = role === 'practice_founder'
-      const isPracticeManager   = role === 'practice_manager'
-      const isOperationsManager = role === 'operations_manager'
-      const isReceptionist      = role === 'receptionist'
-      const isBillingStaff      = role === 'billing_staff'
-      const canViewAll          = role === 'practice_founder'
-                                || role === 'practice_manager'
-                                || role === 'dr_evans'  // legacy role — still supported
-
-      setState({
-        userId:             user.id,
-        orgId:              userData?.org_id ?? '',
-        employeeId:         employee?.id ?? null,
-        employeeName:       employee?.name ?? user.email ?? null,
-        email:              user.email ?? null,
-        role,
-        isLoading:          false,
-        isPracticeFounder,
-        isPracticeManager,
-        isOperationsManager,
-        isReceptionist,
-        isBillingStaff,
-        canViewAll,
-      })
     }
 
     load()
@@ -101,7 +129,7 @@ export function useOrgUser(): OrgUser {
   return state
 }
 
-// ── Helper: get a scoped supabase client (RLS handles org filtering automatically)
+// ── Helper: scoped supabase client (RLS handles org filtering automatically)
 export function useSupabase() {
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
