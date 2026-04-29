@@ -303,7 +303,7 @@ export default function BillingPage() {
     ...columns.filter(c => !c.pinned && c.visible),
   ];
   const pinnedCount = columns.filter(c => c.pinned && c.visible).length;
-  const pinnedLeft  = (ci: number) => 40 + orderedCols.slice(0, ci).filter(c => c.pinned).reduce((s, c) => s + c.width, 0);
+  const pinnedLeft  = (ci: number) => 80 + orderedCols.slice(0, ci).filter(c => c.pinned).reduce((s, c) => s + c.width, 0);
 
   const onDragStart = (i: number) => { dragColIdx.current = i; };
   const onDragOver  = (e: React.DragEvent, i: number) => { e.preventDefault(); dragOverIdx.current = i; };
@@ -709,6 +709,7 @@ export default function BillingPage() {
                   onChange={() => selectedRows.size === paginated.length ? setSelectedRows(new Set()) : setSelectedRows(new Set(paginated.map(r => r.id)))}
                   className="accent-[#c8843a] cursor-pointer" />
               </th>
+              <th className="pf-sticky-cell border-b border-r border-[#2e2016] w-8" style={{ left: 40 }} />
               {orderedCols.map((col, ci) => {
                 const left = col.pinned ? pinnedLeft(ci) : undefined;
                 const activeSortIdx = sorts.findIndex(s => s.column === col.key);
@@ -764,6 +765,13 @@ export default function BillingPage() {
                         onChange={() => setSelectedRows(p => { const n = new Set(p); n.has(row.id) ? n.delete(row.id) : n.add(row.id); return n; })}
                         className="accent-[#c8843a] cursor-pointer" />
                     </td>
+                    <td className="pf-sticky-cell w-8 border-r border-[#2a1c10]"
+                      style={{ left: 40 }}
+                      onClick={e => { e.stopPropagation(); setDetailRow(row); }}>
+                      <button className="opacity-0 group-hover/row:opacity-100 transition flex items-center justify-center w-full h-full text-[#6b5a47] hover:text-[#c8843a]">
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
                     {orderedCols.map((col, ci) => {
                       const left = col.pinned ? pinnedLeft(ci) : undefined;
                       return (
@@ -794,6 +802,7 @@ export default function BillingPage() {
           <tfoot className="sticky bottom-0 z-10 bg-[#1e1409]">
             <tr className="border-t-2 border-[#3a2a1a]">
               <td className="pf-sticky-checkbox w-10 px-2 border-r border-[#2e2016]" />
+              <td className="pf-sticky-cell w-8 border-r border-[#2e2016]" style={{ left: 40 }} />
               {orderedCols.map((col, ci) => {
                 const left = col.pinned ? pinnedLeft(ci) : undefined;
                 return (
