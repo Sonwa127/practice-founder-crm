@@ -722,7 +722,7 @@ function ProjectsPageContent() {
 
 export default function ProjectsPage() {
   return (
-    <RoleGuard allow={['dr_evans', 'practice_founder', 'practice_manager', 'operations_manager']}>
+    <RoleGuard allow={['admin']}>
       <ProjectsPageContent />
     </RoleGuard>
   )
