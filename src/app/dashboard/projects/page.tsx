@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgUser } from '@/lib/useOrgUser'
@@ -15,7 +15,6 @@ import {
   Briefcase, Link2, FileText, LayoutGrid, ExternalLink
 } from 'lucide-react'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 type RowHeight = 'compact' | 'medium' | 'tall'
 type SortConfig = { key: keyof Project; dir: 'asc' | 'desc' } | null
 
@@ -23,7 +22,7 @@ type Project = {
   id: string
   org_id: string
   project_name: string
-  owner: string | null          // employees.id
+  owner: string | null
   status: string
   project_timeline_start: string | null
   project_timeline_end: string | null
@@ -35,7 +34,6 @@ type Project = {
   created_at: string
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const STATUS_OPTIONS = [
   'To-Do', 'In-Process', 'Revision Required', 'Manager Review',
   'Client Review', 'Requirements to Clarify', 'Complete',
@@ -84,7 +82,6 @@ const PRIORITY_SHORT: Record<string, string> = {
   'Urgent & Important':         '🔴 Critical',
 }
 
-// ─── Demo data ────────────────────────────────────────────────────────────────
 const DEMO: Project[] = [
   {
     id: 'dp-1', org_id: 'demo', project_name: 'Billing SOP Overhaul',
@@ -115,7 +112,6 @@ const DEMO: Project[] = [
   },
 ]
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(d: string | null) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -126,7 +122,6 @@ function isOverdue(end: string | null, status: string) {
   return new Date(end) < new Date()
 }
 
-// ─── Cell editors ─────────────────────────────────────────────────────────────
 function SelectCell({ value, options, onSave, onCancel }: {
   value: string; options: string[]; onSave: (v: string) => void; onCancel: () => void
 }) {
@@ -173,13 +168,26 @@ function NewProjectModal({ orgId, onClose, onCreated }: {
   orgId: string; onClose: () => void; onCreated: () => void
 }) {
   const supabase = createClient()
+
   const [form, setForm] = useState({
     project_name: '', status: 'To-Do', functions: '',
     priority: '', project_timeline_start: '', project_timeline_end: '',
     project_brief: '', project_updates: '',
+    owner: '',
   })
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+
+  // ── Fetch employees for owner dropdown
+  const [employees, setEmployees] = useState<{ id: string; name: string }[]>([])
+  useEffect(() => {
+    supabase
+      .from('employees')
+      .select('id, name')
+      .eq('org_id', orgId)
+      .order('name')
+      .then(({ data }) => setEmployees((data ?? []) as { id: string; name: string }[]))
+  }, [orgId])
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
@@ -196,6 +204,7 @@ function NewProjectModal({ orgId, onClose, onCreated }: {
       project_timeline_end: form.project_timeline_end || null,
       project_brief: form.project_brief || null,
       project_updates: form.project_updates || null,
+      owner: form.owner || null,
     })
     setSaving(false)
     if (error) { setErr(error.message); return }
@@ -237,6 +246,14 @@ function NewProjectModal({ orgId, onClose, onCreated }: {
                 {PRIORITY_OPTIONS.map(o => <option key={o}>{o}</option>)}
               </select>
             </div>
+          </div>
+          <div>
+            <label className="block text-[#a08060] text-xs mb-1">Owner</label>
+            <select value={form.owner} onChange={e => set('owner', e.target.value)}
+              className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none">
+              <option value="">— Unassigned —</option>
+              {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
           </div>
           <div>
             <label className="block text-[#a08060] text-xs mb-1">Function</label>
@@ -374,19 +391,17 @@ function ProjectsPageContent() {
 
   function exportCsv() {
     const headers = ['Project Name', 'Status', 'Owner', 'Start', 'End', 'Priority', 'Function']
-    const csv2 = [headers, ...filtered.map(r => [
+    const csv = [headers, ...filtered.map(r => [
       r.project_name, r.status, r.owner ? resolveName(r.owner) : '',
       r.project_timeline_start ?? '', r.project_timeline_end ?? '',
       r.priority ?? '', r.functions ?? ''
     ])].map(r => r.map(c => `"${c}"`).join(',')).join('\n')
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv2]))
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv]))
     a.download = 'projects.csv'; a.click()
   }
 
   return (
     <div className="flex flex-col h-full bg-[#1a1410] text-[#c4b49a]">
-
-      {/* Header */}
       <div className="px-6 pt-5 pb-3 border-b border-[#2e2016] flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-[#c4b49a]">Projects</h1>
@@ -399,7 +414,6 @@ function ProjectsPageContent() {
         </div>
       </div>
 
-      {/* Toolbar */}
       <div className="px-4 py-2 border-b border-[#2e2016] flex items-center gap-1.5 flex-wrap bg-[#1a1410]">
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6b5a47]" />
@@ -441,7 +455,6 @@ function ProjectsPageContent() {
         </button>
       </div>
 
-      {/* Filter bar */}
       {showFilters && (
         <div className="px-4 py-2.5 border-b border-[#2e2016] bg-[#1e1409] flex items-center gap-3 flex-wrap">
           <span className="text-[#6b5a47] text-xs font-medium">Filters:</span>
@@ -469,7 +482,6 @@ function ProjectsPageContent() {
         </div>
       )}
 
-      {/* Table + detail panel */}
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-auto">
           <table className="w-full border-collapse text-xs min-w-[860px]">
@@ -482,14 +494,14 @@ function ProjectsPageContent() {
                     className="accent-[#c8843a]" />
                 </th>
                 {[
-                  { key: 'project_name' as keyof Project,          label: 'Project Name',   icon: <Briefcase size={11} />, w: 'min-w-[220px]' },
-                  { key: 'status' as keyof Project,                label: 'Status',          icon: <Check size={11} />, w: 'min-w-[140px]' },
-                  { key: 'owner' as keyof Project,                 label: 'Owner',           icon: <User size={11} />, w: 'min-w-[130px]' },
-                  { key: 'project_timeline_start' as keyof Project,label: 'Start',           icon: <Calendar size={11} />, w: 'min-w-[110px]' },
-                  { key: 'project_timeline_end' as keyof Project,  label: 'End',             icon: <Calendar size={11} />, w: 'min-w-[110px]' },
-                  { key: 'priority' as keyof Project,              label: 'Priority',        icon: <Flag size={11} />, w: 'min-w-[130px]' },
-                  { key: 'functions' as keyof Project,             label: 'Function',        icon: <Briefcase size={11} />, w: 'min-w-[160px]' },
-                  { key: 'project_updates' as keyof Project,       label: 'Latest Update',   icon: <FileText size={11} />, w: 'min-w-[200px]' },
+                  { key: 'project_name' as keyof Project,          label: 'Project Name', icon: <Briefcase size={11} />, w: 'min-w-[220px]' },
+                  { key: 'status' as keyof Project,                label: 'Status',        icon: <Check size={11} />, w: 'min-w-[140px]' },
+                  { key: 'owner' as keyof Project,                 label: 'Owner',         icon: <User size={11} />, w: 'min-w-[130px]' },
+                  { key: 'project_timeline_start' as keyof Project,label: 'Start',         icon: <Calendar size={11} />, w: 'min-w-[110px]' },
+                  { key: 'project_timeline_end' as keyof Project,  label: 'End',           icon: <Calendar size={11} />, w: 'min-w-[110px]' },
+                  { key: 'priority' as keyof Project,              label: 'Priority',      icon: <Flag size={11} />, w: 'min-w-[130px]' },
+                  { key: 'functions' as keyof Project,             label: 'Function',      icon: <Briefcase size={11} />, w: 'min-w-[160px]' },
+                  { key: 'project_updates' as keyof Project,       label: 'Latest Update', icon: <FileText size={11} />, w: 'min-w-[200px]' },
                 ].map(col => (
                   <th key={col.key} onClick={() => toggleSort(col.key)}
                     className={`${col.w} px-3 py-2 text-left font-medium text-[#a08060] cursor-pointer hover:text-[#c4b49a] select-none whitespace-nowrap`}>
@@ -509,7 +521,6 @@ function ProjectsPageContent() {
                 const selected = selectedIds.has(row.id)
                 const overdueFlag = isOverdue(row.project_timeline_end, row.status)
                 const isActive = detailRow?.id === row.id
-
                 return (
                   <tr key={row.id}
                     onClick={() => setDetailRow(isActive ? null : row)}
@@ -517,7 +528,6 @@ function ProjectsPageContent() {
                       ${selected ? 'pf-row-selected' : ''}
                       ${isActive ? 'bg-[#c8843a]/10' : idx % 2 === 0 ? 'bg-[#1a1410]' : 'bg-[#1c1610]'}
                       hover:bg-[#c8843a]/5`}>
-
                     <td className="pf-sticky-checkbox px-2" onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={selected}
                         onChange={e => {
@@ -527,14 +537,10 @@ function ProjectsPageContent() {
                         }}
                         className="accent-[#c8843a]" />
                     </td>
-
-                    {/* Project Name */}
                     <td className={`pf-sticky-cell px-3 ${rowPy} font-medium text-[#c4b49a]`} style={{ left: 32 }}
                       onDoubleClick={e => { e.stopPropagation(); setEditCell({ id: row.id, key: 'project_name' }) }}>
                       {editCell?.id === row.id && editCell?.key === 'project_name' ? (
-                        <TextCell value={row.project_name}
-                          onSave={v => saveCell(row.id, 'project_name', v)}
-                          onCancel={() => setEditCell(null)} />
+                        <TextCell value={row.project_name} onSave={v => saveCell(row.id, 'project_name', v)} onCancel={() => setEditCell(null)} />
                       ) : (
                         <span className="flex items-center gap-1.5">
                           {row.project_name}
@@ -542,68 +548,45 @@ function ProjectsPageContent() {
                         </span>
                       )}
                     </td>
-
-                    {/* Status */}
                     <td className={`px-3 ${rowPy}`}
                       onDoubleClick={e => { e.stopPropagation(); setEditCell({ id: row.id, key: 'status' }) }}>
                       {editCell?.id === row.id && editCell?.key === 'status' ? (
-                        <SelectCell value={row.status} options={STATUS_OPTIONS}
-                          onSave={v => saveCell(row.id, 'status', v)} onCancel={() => setEditCell(null)} />
+                        <SelectCell value={row.status} options={STATUS_OPTIONS} onSave={v => saveCell(row.id, 'status', v)} onCancel={() => setEditCell(null)} />
                       ) : (
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_COLORS[row.status] ?? ''}`}>
-                          {row.status}
-                        </span>
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_COLORS[row.status] ?? ''}`}>{row.status}</span>
                       )}
                     </td>
-
-                    {/* Owner */}
                     <td className={`px-3 ${rowPy} text-[#a08060]`}>
                       {row.owner ? resolveName(row.owner) : <span className="text-[#6b5a47]">Unassigned</span>}
                     </td>
-
-                    {/* Start */}
                     <td className={`px-3 ${rowPy} text-[#a08060] whitespace-nowrap`}
                       onDoubleClick={e => { e.stopPropagation(); setEditCell({ id: row.id, key: 'project_timeline_start' }) }}>
                       {editCell?.id === row.id && editCell?.key === 'project_timeline_start' ? (
-                        <DateCell value={row.project_timeline_start ?? ''}
-                          onSave={v => saveCell(row.id, 'project_timeline_start', v || null)}
-                          onCancel={() => setEditCell(null)} />
+                        <DateCell value={row.project_timeline_start ?? ''} onSave={v => saveCell(row.id, 'project_timeline_start', v || null)} onCancel={() => setEditCell(null)} />
                       ) : fmtDate(row.project_timeline_start)}
                     </td>
-
-                    {/* End */}
                     <td className={`px-3 ${rowPy} whitespace-nowrap ${overdueFlag ? 'text-[#f87171]' : 'text-[#a08060]'}`}
                       onDoubleClick={e => { e.stopPropagation(); setEditCell({ id: row.id, key: 'project_timeline_end' }) }}>
                       {editCell?.id === row.id && editCell?.key === 'project_timeline_end' ? (
-                        <DateCell value={row.project_timeline_end ?? ''}
-                          onSave={v => saveCell(row.id, 'project_timeline_end', v || null)}
-                          onCancel={() => setEditCell(null)} />
+                        <DateCell value={row.project_timeline_end ?? ''} onSave={v => saveCell(row.id, 'project_timeline_end', v || null)} onCancel={() => setEditCell(null)} />
                       ) : fmtDate(row.project_timeline_end)}
                     </td>
-
-                    {/* Priority */}
                     <td className={`px-3 ${rowPy} whitespace-nowrap`}
                       onDoubleClick={e => { e.stopPropagation(); setEditCell({ id: row.id, key: 'priority' }) }}>
                       {editCell?.id === row.id && editCell?.key === 'priority' ? (
-                        <SelectCell value={row.priority ?? ''} options={PRIORITY_OPTIONS}
-                          onSave={v => saveCell(row.id, 'priority', v)} onCancel={() => setEditCell(null)} />
+                        <SelectCell value={row.priority ?? ''} options={PRIORITY_OPTIONS} onSave={v => saveCell(row.id, 'priority', v)} onCancel={() => setEditCell(null)} />
                       ) : (
                         <span className={`text-xs ${PRIORITY_COLORS[row.priority ?? ''] ?? 'text-[#6b5a47]'}`}>
                           {PRIORITY_SHORT[row.priority ?? ''] ?? '—'}
                         </span>
                       )}
                     </td>
-
-                    {/* Function */}
                     <td className={`px-3 ${rowPy} text-[#a08060] whitespace-nowrap max-w-[180px] truncate`}
                       onDoubleClick={e => { e.stopPropagation(); setEditCell({ id: row.id, key: 'functions' }) }}>
                       {editCell?.id === row.id && editCell?.key === 'functions' ? (
-                        <SelectCell value={row.functions ?? ''} options={FUNCTION_OPTIONS}
-                          onSave={v => saveCell(row.id, 'functions', v)} onCancel={() => setEditCell(null)} />
+                        <SelectCell value={row.functions ?? ''} options={FUNCTION_OPTIONS} onSave={v => saveCell(row.id, 'functions', v)} onCancel={() => setEditCell(null)} />
                       ) : (row.functions ?? <span className="text-[#6b5a47]">—</span>)}
                     </td>
-
-                    {/* Latest Update */}
                     <td className={`px-3 ${rowPy} text-[#6b5a47] max-w-[220px]`}>
                       {row.project_updates
                         ? <span className="truncate block">{row.project_updates.split('\n').at(-1)?.trim() ?? '—'}</span>
@@ -613,16 +596,13 @@ function ProjectsPageContent() {
                 )
               })}
             </tbody>
-
             {filtered.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-[#2e2016] bg-[#1e1409] text-[#6b5a47] sticky bottom-0">
                   <td className="px-2 py-2" />
                   <td className="px-3 py-2 text-[#a08060] font-medium">{filtered.length} projects</td>
                   <td className="px-3 py-2"><span className="text-[#86efac] text-[10px]">{complete} complete</span></td>
-                  <td className="px-3 py-2">
-                    {overdue > 0 && <span className="text-[#f87171] text-[10px]">{overdue} overdue</span>}
-                  </td>
+                  <td className="px-3 py-2">{overdue > 0 && <span className="text-[#f87171] text-[10px]">{overdue} overdue</span>}</td>
                   <td colSpan={5} />
                 </tr>
               </tfoot>
@@ -630,35 +610,26 @@ function ProjectsPageContent() {
           </table>
         </div>
 
-        {/* Detail panel */}
         {detailRow && (
           <div className="w-[380px] border-l border-[#2e2016] bg-[#1e1409] flex flex-col overflow-y-auto shrink-0">
             <div className="flex items-start justify-between px-4 py-3 border-b border-[#2e2016] sticky top-0 bg-[#1e1409] z-10">
               <div className="flex-1 pr-2">
-                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium mb-1.5 ${STATUS_COLORS[detailRow.status] ?? ''}`}>
-                  {detailRow.status}
-                </span>
+                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium mb-1.5 ${STATUS_COLORS[detailRow.status] ?? ''}`}>{detailRow.status}</span>
                 <h3 className="text-[#c4b49a] font-semibold text-sm leading-snug">{detailRow.project_name}</h3>
               </div>
-              <button onClick={() => setDetailRow(null)} className="text-[#6b5a47] hover:text-[#c4b49a] transition-colors mt-0.5 shrink-0">
-                <X size={16} />
-              </button>
+              <button onClick={() => setDetailRow(null)} className="text-[#6b5a47] hover:text-[#c4b49a] transition-colors mt-0.5 shrink-0"><X size={16} /></button>
             </div>
-
             <div className="px-4 py-3 space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[#6b5a47] mb-0.5 flex items-center gap-1"><User size={11} />Owner</p>
-                  <p className="text-[#c4b49a]">
-                    {detailRow.owner ? resolveName(detailRow.owner) : <span className="text-[#6b5a47]">Unassigned</span>}
-                  </p>
+                  <p className="text-[#c4b49a]">{detailRow.owner ? resolveName(detailRow.owner) : <span className="text-[#6b5a47]">Unassigned</span>}</p>
                 </div>
                 <div>
                   <p className="text-[#6b5a47] mb-0.5 flex items-center gap-1"><Flag size={11} />Priority</p>
                   <p className={PRIORITY_COLORS[detailRow.priority ?? ''] ?? 'text-[#6b5a47]'}>{detailRow.priority ?? '—'}</p>
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[#6b5a47] mb-0.5 flex items-center gap-1"><Calendar size={11} />Start</p>
@@ -671,19 +642,16 @@ function ProjectsPageContent() {
                   </p>
                 </div>
               </div>
-
               <div>
                 <p className="text-[#6b5a47] mb-0.5 flex items-center gap-1"><Briefcase size={11} />Function</p>
                 <p className="text-[#a08060]">{detailRow.functions ?? '—'}</p>
               </div>
-
               {detailRow.project_brief && (
                 <div className="border-t border-[#2e2016] pt-3">
                   <p className="text-[#6b5a47] mb-1.5 font-medium flex items-center gap-1"><FileText size={11} />Project Brief</p>
                   <p className="text-[#a08060] leading-relaxed whitespace-pre-wrap">{detailRow.project_brief}</p>
                 </div>
               )}
-
               {detailRow.project_updates && (
                 <div className="border-t border-[#2e2016] pt-3">
                   <p className="text-[#6b5a47] mb-1.5 font-medium flex items-center gap-1"><Link2 size={11} />Project Updates</p>
@@ -691,13 +659,11 @@ function ProjectsPageContent() {
                 </div>
               )}
             </div>
-
             {orgId && (
               <div className="border-t border-[#2e2016] px-4 py-3">
                 <RecordComments recordId={detailRow.id} tableName="projects" orgId={orgId} />
               </div>
             )}
-
             <div className="px-4 py-3 border-t border-[#2e2016] mt-auto">
               <button onClick={() => setDetailRow(null)}
                 className="w-full py-2 text-xs text-[#6b5a47] hover:text-[#c4b49a] border border-[#2e2016] hover:border-[#c8843a]/30 rounded-lg transition-colors">

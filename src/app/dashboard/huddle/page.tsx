@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useMemo, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgUser } from '@/lib/useOrgUser'
 import { useEmployeeNames } from '@/lib/useEmployeeNames'
@@ -10,7 +10,7 @@ import {
   Search, Filter, ArrowUpDown, Download, RefreshCw,
   Plus, X, ChevronDown, ChevronUp, ChevronsUpDown,
   Check, Loader2, AlertCircle, Calendar, Clock,
-  Users, AlertTriangle, FileText, CheckSquare, Square,
+  Users, AlertTriangle, FileText, CheckSquare,
   LayoutGrid, SlidersHorizontal, Group, Upload
 } from 'lucide-react'
 
@@ -26,6 +26,7 @@ type Huddle = {
   present: string | null
   issues_assigned_today: string | null
   new_issues_raised_today: string | null
+  open_issues_carried_over: string | null   // ← ADDED: comma-sep issue IDs or descriptive text
   all_issues_have_owners: boolean | null
   charts_not_closed_yesterday: number | null
   claims_not_submitted_yesterday: number | null
@@ -35,6 +36,8 @@ type Huddle = {
   created_at: string
 }
 
+type IssueOption = { id: string; issue_name: string; status: string }
+
 // ─── Demo data ────────────────────────────────────────────────────────────────
 const DEMO: Huddle[] = [
   {
@@ -42,6 +45,7 @@ const DEMO: Huddle[] = [
     huddle_end_time: '09:18', present: 'Dr. Evans, Markel, Michael, Receptionist',
     issues_assigned_today: 'Michael — resolve denied claims batch\nMarkel — follow up on MA coverage',
     new_issues_raised_today: 'Insurance verification backlog flagged',
+    open_issues_carried_over: null,
     all_issues_have_owners: true,
     charts_not_closed_yesterday: 2, claims_not_submitted_yesterday: 3,
     huddle_complete: true,
@@ -53,6 +57,7 @@ const DEMO: Huddle[] = [
     huddle_end_time: '09:22', present: 'Dr. Evans, Markel, Michael',
     issues_assigned_today: 'Markel — MA no-show coverage plan',
     new_issues_raised_today: 'MA no-show impacted 3 patient rooms',
+    open_issues_carried_over: null,
     all_issues_have_owners: false,
     charts_not_closed_yesterday: 0, claims_not_submitted_yesterday: 1,
     huddle_complete: true,
@@ -73,21 +78,60 @@ function NewHuddleModal({ orgId, onClose, onCreated }: {
 }) {
   const supabase = createClient()
   const today = new Date().toISOString().split('T')[0]
+
   const [form, setForm] = useState({
     date: today, huddle_end_time: '', present: '',
     issues_assigned_today: '', new_issues_raised_today: '',
     all_issues_have_owners: false,
     charts_not_closed_yesterday: '', claims_not_submitted_yesterday: '',
     huddle_complete: false, notes_summary: '',
+    submitted_by: '',
   })
+
+  // ── ADDED: open issues for "carried over" multi-select
+  const [openIssues, setOpenIssues] = useState<IssueOption[]>([])
+  const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(new Set())
+
+  // ── ADDED: employees for submitted_by dropdown
+  const [employees, setEmployees] = useState<{ id: string; name: string }[]>([])
+
+  useEffect(() => {
+    // fetch open/investigating issues
+    supabase.from('issues_breakdowns')
+      .select('id, issue_name, status')
+      .eq('org_id', orgId)
+      .in('status', ['Open', 'Investigating'])
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setOpenIssues((data ?? []) as IssueOption[]))
+
+    // fetch employees
+    supabase.from('employees')
+      .select('id, name')
+      .eq('org_id', orgId)
+      .order('name')
+      .then(({ data }) => setEmployees((data ?? []) as { id: string; name: string }[]))
+  }, [orgId])
+
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
   const set = (k: string, v: string | boolean) => setForm(f => ({ ...f, [k]: v }))
 
+  function toggleIssue(id: string) {
+    setSelectedIssueIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
   async function handleSubmit() {
     if (!form.date) { setErr('Date is required.'); return }
     setSaving(true); setErr('')
+
+    // Store carried-over issue IDs as comma-separated string
+    const carriedOver = selectedIssueIds.size > 0 ? [...selectedIssueIds].join(',') : null
+
     const { error } = await supabase.from('daily_huddle_log').insert({
       org_id: orgId,
       date: form.date,
@@ -95,11 +139,13 @@ function NewHuddleModal({ orgId, onClose, onCreated }: {
       present: form.present || null,
       issues_assigned_today: form.issues_assigned_today || null,
       new_issues_raised_today: form.new_issues_raised_today || null,
+      open_issues_carried_over: carriedOver,
       all_issues_have_owners: form.all_issues_have_owners,
       charts_not_closed_yesterday: form.charts_not_closed_yesterday ? parseInt(form.charts_not_closed_yesterday as string) : null,
       claims_not_submitted_yesterday: form.claims_not_submitted_yesterday ? parseInt(form.claims_not_submitted_yesterday as string) : null,
       huddle_complete: form.huddle_complete,
       notes_summary: form.notes_summary || null,
+      submitted_by: form.submitted_by || null,
     })
     setSaving(false)
     if (error) { setErr(error.message); return }
@@ -115,12 +161,14 @@ function NewHuddleModal({ orgId, onClose, onCreated }: {
           </h2>
           <button onClick={onClose} className="text-[#6b5a47] hover:text-[#c4b49a] transition-colors"><X size={18} /></button>
         </div>
+
         <div className="px-5 py-4 space-y-3 max-h-[75vh] overflow-y-auto">
           {err && (
             <div className="flex items-center gap-2 text-[#f87171] text-xs bg-[#2e1010] border border-[#f87171]/20 rounded px-3 py-2">
               <AlertCircle size={13} />{err}
             </div>
           )}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[#a08060] text-xs mb-1">Date *</label>
@@ -133,42 +181,94 @@ function NewHuddleModal({ orgId, onClose, onCreated }: {
                 className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none" />
             </div>
           </div>
+
+          {/* ADDED: Submitted By */}
+          <div>
+            <label className="block text-[#a08060] text-xs mb-1">Submitted By</label>
+            <select value={form.submitted_by} onChange={e => set('submitted_by', e.target.value)}
+              className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none">
+              <option value="">— Select —</option>
+              {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          </div>
+
           <div>
             <label className="block text-[#a08060] text-xs mb-1">Present</label>
             <input value={form.present} onChange={e => set('present', e.target.value)}
               placeholder="Dr. Evans, Markel, Michael…"
               className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none" />
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[#a08060] text-xs mb-1">Charts Not Closed Yesterday</label>
-              <input type="number" min="0" value={form.charts_not_closed_yesterday} onChange={e => set('charts_not_closed_yesterday', e.target.value)}
+              <input type="number" min="0" value={form.charts_not_closed_yesterday}
+                onChange={e => set('charts_not_closed_yesterday', e.target.value)}
                 className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none" />
             </div>
             <div>
               <label className="block text-[#a08060] text-xs mb-1">Claims Not Submitted Yesterday</label>
-              <input type="number" min="0" value={form.claims_not_submitted_yesterday} onChange={e => set('claims_not_submitted_yesterday', e.target.value)}
+              <input type="number" min="0" value={form.claims_not_submitted_yesterday}
+                onChange={e => set('claims_not_submitted_yesterday', e.target.value)}
                 className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none" />
             </div>
           </div>
+
+          {/* ADDED: Open Issues Carried Over — multi-select from open issues */}
+          <div>
+            <label className="block text-[#a08060] text-xs mb-1.5">
+              Open Issues Carried Over
+              <span className="text-[#6b5a47] ml-1.5 font-normal normal-case">
+                ({openIssues.length} open/investigating)
+              </span>
+            </label>
+            {openIssues.length === 0 ? (
+              <p className="text-[#6b5a47] text-xs italic px-1">No open issues found — log issues first in Issues &amp; Breakdowns.</p>
+            ) : (
+              <div className="border border-[#2e2016] rounded-lg max-h-32 overflow-y-auto divide-y divide-[#2e2016]">
+                {openIssues.map(issue => (
+                  <label key={issue.id}
+                    className="flex items-center gap-2.5 px-3 py-1.5 cursor-pointer hover:bg-[#2e2016]/40 transition-colors">
+                    <button type="button"
+                      onClick={() => toggleIssue(issue.id)}
+                      className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors
+                        ${selectedIssueIds.has(issue.id) ? 'bg-[#c8843a] border-[#c8843a]' : 'border-[#2e2016] bg-[#120d08]'}`}>
+                      {selectedIssueIds.has(issue.id) && <Check size={9} className="text-white" />}
+                    </button>
+                    <span className="text-[#c4b49a] text-xs flex-1 truncate">{issue.issue_name}</span>
+                    <span className={`text-[10px] shrink-0 ${issue.status === 'Open' ? 'text-[#f87171]' : 'text-[#facc15]'}`}>
+                      {issue.status}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {selectedIssueIds.size > 0 && (
+              <p className="text-[#6b5a47] text-[10px] mt-1">{selectedIssueIds.size} issue{selectedIssueIds.size !== 1 ? 's' : ''} selected</p>
+            )}
+          </div>
+
           <div>
             <label className="block text-[#a08060] text-xs mb-1">Issues Assigned Today</label>
             <textarea value={form.issues_assigned_today} onChange={e => set('issues_assigned_today', e.target.value)}
               placeholder="One per line: Name — task…" rows={3}
               className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none resize-none" />
           </div>
+
           <div>
             <label className="block text-[#a08060] text-xs mb-1">New Issues Raised Today</label>
             <textarea value={form.new_issues_raised_today} onChange={e => set('new_issues_raised_today', e.target.value)}
               placeholder="Issues that came up in today's huddle…" rows={2}
               className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none resize-none" />
           </div>
+
           <div>
             <label className="block text-[#a08060] text-xs mb-1">Notes / Summary</label>
             <textarea value={form.notes_summary} onChange={e => set('notes_summary', e.target.value)}
               placeholder="Brief summary of what was discussed and decided…" rows={3}
               className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none resize-none" />
           </div>
+
           <div className="flex flex-col gap-2 pt-1">
             {[
               { key: 'all_issues_have_owners', label: 'All issues have owners?' },
@@ -186,6 +286,7 @@ function NewHuddleModal({ orgId, onClose, onCreated }: {
             ))}
           </div>
         </div>
+
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-[#2e2016]">
           <button onClick={onClose} className="px-4 py-2 text-sm text-[#6b5a47] hover:text-[#c4b49a] transition-colors">Cancel</button>
           <button onClick={handleSubmit} disabled={saving}
@@ -215,6 +316,18 @@ export default function HuddlePage() {
   const [detailRow, setDetailRow]           = useState<Huddle | null>(null)
   const [showNewModal, setShowNewModal]     = useState(false)
   const [showFilters, setShowFilters]       = useState(false)
+
+  // fetch open issues so we can resolve IDs in detail panel
+  const [issueMap, setIssueMap] = useState<Record<string, string>>({})
+  useEffect(() => {
+    if (!orgId) return
+    supabase.from('issues_breakdowns').select('id, issue_name').eq('org_id', orgId)
+      .then(({ data }) => {
+        const map: Record<string, string> = {}
+        ;(data ?? []).forEach((r: { id: string; issue_name: string }) => { map[r.id] = r.issue_name })
+        setIssueMap(map)
+      })
+  }, [orgId])
 
   const { data: huddles, isLoading, refetch } = useQuery<Huddle[]>({
     queryKey: ['huddle', orgId],
@@ -279,13 +392,14 @@ export default function HuddlePage() {
   const complete = filtered.filter(x => x.huddle_complete).length
 
   function exportCsv() {
-    const headers = ['Date', 'End Time', 'Present', 'Complete', 'Charts Pending', 'Claims Pending', 'All Issues Have Owners']
+    const headers = ['Date', 'End Time', 'Present', 'Complete', 'Charts Pending', 'Claims Pending', 'All Issues Have Owners', 'Submitted By']
     const csv = [headers, ...filtered.map(r => [
       r.date, r.huddle_end_time ?? '', r.present ?? '',
       r.huddle_complete ? 'Yes' : 'No',
       r.charts_not_closed_yesterday ?? 0,
       r.claims_not_submitted_yesterday ?? 0,
-      r.all_issues_have_owners ? 'Yes' : 'No'
+      r.all_issues_have_owners ? 'Yes' : 'No',
+      r.submitted_by ? resolveName(r.submitted_by) : ''
     ])].map(r => r.map(c => `"${c}"`).join(',')).join('\n')
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv]))
     a.download = 'huddle-log.csv'; a.click()
@@ -367,7 +481,7 @@ export default function HuddlePage() {
       {/* Table + detail */}
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-auto">
-          <table className="w-full border-collapse text-xs min-w-[900px]">
+          <table className="w-full border-collapse text-xs min-w-[1000px]">
             <thead>
               <tr className="bg-[#1e1409] border-b border-[#2e2016] sticky top-0 z-10">
                 <th className="pf-sticky-checkbox w-8 px-2 py-2">
@@ -377,15 +491,16 @@ export default function HuddlePage() {
                     className="accent-[#c8843a]" />
                 </th>
                 {[
-                  { key: 'date' as keyof Huddle,                          label: 'Date',                       icon: <Calendar size={11} />, w: 'min-w-[160px]' },
-                  { key: 'huddle_end_time' as keyof Huddle,               label: 'End Time',                   icon: <Clock size={11} />, w: 'min-w-[90px]' },
-                  { key: 'huddle_complete' as keyof Huddle,               label: 'Complete?',                  icon: <CheckSquare size={11} />, w: 'min-w-[90px]' },
-                  { key: 'present' as keyof Huddle,                       label: 'Present',                    icon: <Users size={11} />, w: 'min-w-[180px]' },
-                  { key: 'charts_not_closed_yesterday' as keyof Huddle,   label: 'Charts Pending',             icon: <FileText size={11} />, w: 'min-w-[110px]' },
-                  { key: 'claims_not_submitted_yesterday' as keyof Huddle,label: 'Claims Pending',             icon: <AlertTriangle size={11} />, w: 'min-w-[110px]' },
-                  { key: 'all_issues_have_owners' as keyof Huddle,        label: 'All Issues Owned?',          icon: <Check size={11} />, w: 'min-w-[120px]' },
-                  { key: 'new_issues_raised_today' as keyof Huddle,       label: 'New Issues Raised',          icon: <AlertTriangle size={11} />, w: 'min-w-[180px]' },
-                  { key: 'notes_summary' as keyof Huddle,                 label: 'Notes',                      icon: <FileText size={11} />, w: 'min-w-[220px]' },
+                  { key: 'date' as keyof Huddle,                           label: 'Date',                icon: <Calendar size={11} />, w: 'min-w-[160px]' },
+                  { key: 'huddle_end_time' as keyof Huddle,                label: 'End Time',            icon: <Clock size={11} />, w: 'min-w-[90px]' },
+                  { key: 'huddle_complete' as keyof Huddle,                label: 'Complete?',           icon: <CheckSquare size={11} />, w: 'min-w-[90px]' },
+                  { key: 'present' as keyof Huddle,                        label: 'Present',             icon: <Users size={11} />, w: 'min-w-[180px]' },
+                  { key: 'charts_not_closed_yesterday' as keyof Huddle,    label: 'Charts Pending',      icon: <FileText size={11} />, w: 'min-w-[110px]' },
+                  { key: 'claims_not_submitted_yesterday' as keyof Huddle, label: 'Claims Pending',      icon: <AlertTriangle size={11} />, w: 'min-w-[110px]' },
+                  { key: 'all_issues_have_owners' as keyof Huddle,         label: 'All Issues Owned?',   icon: <Check size={11} />, w: 'min-w-[120px]' },
+                  { key: 'open_issues_carried_over' as keyof Huddle,       label: 'Carried Over',        icon: <AlertTriangle size={11} />, w: 'min-w-[120px]' }, // ← ADDED
+                  { key: 'submitted_by' as keyof Huddle,                   label: 'Submitted By',        icon: <Users size={11} />, w: 'min-w-[120px]' }, // ← ADDED
+                  { key: 'notes_summary' as keyof Huddle,                  label: 'Notes',               icon: <FileText size={11} />, w: 'min-w-[220px]' },
                 ].map(col => (
                   <th key={col.key} onClick={() => toggleSort(col.key)}
                     className={`${col.w} px-3 py-2 text-left font-medium text-[#a08060] cursor-pointer hover:text-[#c4b49a] select-none whitespace-nowrap`}>
@@ -396,15 +511,19 @@ export default function HuddlePage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={10} className="text-center py-16 text-[#6b5a47]">
+                <tr><td colSpan={11} className="text-center py-16 text-[#6b5a47]">
                   <Loader2 size={20} className="animate-spin inline mr-2" />Loading huddle log…
                 </td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-16 text-[#6b5a47]">No huddle records found.</td></tr>
+                <tr><td colSpan={11} className="text-center py-16 text-[#6b5a47]">No huddle records found.</td></tr>
               ) : filtered.map((row, idx) => {
                 const selected = selectedIds.has(row.id)
                 const isActive = detailRow?.id === row.id
                 const hasWarning = (row.charts_not_closed_yesterday ?? 0) > 0 || (row.claims_not_submitted_yesterday ?? 0) > 0
+                // resolve carried-over issue count
+                const carriedCount = row.open_issues_carried_over
+                  ? row.open_issues_carried_over.split(',').filter(Boolean).length
+                  : 0
 
                 return (
                   <tr key={row.id}
@@ -440,8 +559,13 @@ export default function HuddlePage() {
                       {row.claims_not_submitted_yesterday ?? 0}
                     </td>
                     <td className={`px-3 ${rowPy}`}><BoolBadge val={row.all_issues_have_owners} /></td>
-                    <td className={`px-3 ${rowPy} text-[#6b5a47] max-w-[200px] truncate`}>
-                      {row.new_issues_raised_today ?? '—'}
+                    {/* ADDED: carried over count */}
+                    <td className={`px-3 ${rowPy} text-center tabular-nums ${carriedCount > 0 ? 'text-[#fb923c]' : 'text-[#6b5a47]'}`}>
+                      {carriedCount > 0 ? carriedCount : '—'}
+                    </td>
+                    {/* ADDED: submitted by */}
+                    <td className={`px-3 ${rowPy} text-[#a08060]`}>
+                      {row.submitted_by ? resolveName(row.submitted_by) : <span className="text-[#6b5a47]">—</span>}
                     </td>
                     <td className={`px-3 ${rowPy} text-[#6b5a47] max-w-[240px] truncate`}>
                       {row.notes_summary ?? '—'}
@@ -464,7 +588,7 @@ export default function HuddlePage() {
                   <td className="px-3 py-2 text-right tabular-nums text-[#f87171]">
                     {filtered.reduce((s, r) => s + (r.claims_not_submitted_yesterday ?? 0), 0)}
                   </td>
-                  <td colSpan={2} />
+                  <td colSpan={3} />
                 </tr>
               </tfoot>
             )}
@@ -491,6 +615,14 @@ export default function HuddlePage() {
             </div>
 
             <div className="px-4 py-3 space-y-3 text-xs">
+              {/* ADDED: submitted by in detail */}
+              {detailRow.submitted_by && (
+                <div>
+                  <p className="text-[#6b5a47] mb-1 flex items-center gap-1"><Users size={11} />Submitted By</p>
+                  <p className="text-[#c4b49a]">{resolveName(detailRow.submitted_by)}</p>
+                </div>
+              )}
+
               {detailRow.present && (
                 <div>
                   <p className="text-[#6b5a47] mb-1 flex items-center gap-1"><Users size={11} />Present</p>
@@ -520,6 +652,23 @@ export default function HuddlePage() {
                   : <span className="text-[#f87171] flex items-center gap-1"><X size={11} />No</span>
                 }
               </div>
+
+              {/* ADDED: Open issues carried over in detail panel */}
+              {detailRow.open_issues_carried_over && (
+                <div className="border-t border-[#2e2016] pt-3">
+                  <p className="text-[#6b5a47] mb-1.5 font-medium flex items-center gap-1">
+                    <AlertTriangle size={11} className="text-[#fb923c]" />Open Issues Carried Over
+                  </p>
+                  <div className="space-y-1">
+                    {detailRow.open_issues_carried_over.split(',').filter(Boolean).map(id => (
+                      <p key={id} className="text-[#a08060] flex items-start gap-1.5">
+                        <span className="text-[#fb923c] mt-0.5 shrink-0">→</span>
+                        {issueMap[id] ?? id}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {detailRow.issues_assigned_today && (
                 <div className="border-t border-[#2e2016] pt-3">
