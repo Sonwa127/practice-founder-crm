@@ -57,48 +57,56 @@ function Cell({ val }: { val: unknown }) {
   return <span className="text-[#a08060]">{str}</span>
 }
 
-// ─── Column definitions (what shows in the table) ─────────────────────────────
-const COLUMNS: Record<TabKey, { key: string; label: string; w?: string }[]> = {
+// ─── Column definitions ────────────────────────────────────────────────────────
+// nestedIn: name of the joined object key on the row (e.g. 'core_functions')
+type ColDef = { key: string; label: string; w?: string; nestedIn?: string }
+
+const COLUMNS: Record<TabKey, ColDef[]> = {
   core_functions: [
     { key: 'core_function_name', label: 'Core Function Name', w: 'min-w-[200px]' },
     { key: 'goal',               label: 'Goal',               w: 'min-w-[240px]' },
     { key: 'how_it_is_done',     label: 'How It Is Done',     w: 'min-w-[260px]' },
   ],
   systems: [
-    { key: 'system_name', label: 'System Name', w: 'min-w-[200px]' },
-    { key: 'objective',   label: 'Objective',   w: 'min-w-[260px]' },
-    { key: 'status',      label: 'Status',      w: 'min-w-[120px]' },
+    { key: 'system_name',        label: 'System Name',   w: 'min-w-[200px]' },
+    { key: 'core_function_name', label: 'Core Function', w: 'min-w-[160px]', nestedIn: 'core_functions' },
+    { key: 'objective',          label: 'Objective',     w: 'min-w-[260px]' },
+    { key: 'status',             label: 'Status',        w: 'min-w-[120px]' },
   ],
   processes: [
     { key: 'process_name',   label: 'Process Name',  w: 'min-w-[200px]' },
-    { key: 'status',         label: 'Status',         w: 'min-w-[120px]' },
-    { key: 'purpose',        label: 'Purpose',        w: 'min-w-[240px]' },
-    { key: 'process_detail', label: 'Process Detail', w: 'min-w-[260px]' },
+    { key: 'status',         label: 'Status',        w: 'min-w-[120px]' },
+    { key: 'purpose',        label: 'Purpose',       w: 'min-w-[240px]' },
+    { key: 'process_detail', label: 'Process Detail',w: 'min-w-[260px]' },
   ],
   sops: [
-    { key: 'sop_name',             label: 'SOP Name',  w: 'min-w-[200px]' },
-    { key: 'status',               label: 'Status',    w: 'min-w-[120px]' },
-    { key: 'purpose',              label: 'Purpose',   w: 'min-w-[240px]' },
-    { key: 'resources_needed',     label: 'Resources Needed', w: 'min-w-[180px]' },
-    { key: 'input',                label: 'Input / Trigger',  w: 'min-w-[160px]' },
+    { key: 'sop_name',             label: 'SOP Name',             w: 'min-w-[200px]' },
+    { key: 'status',               label: 'Status',               w: 'min-w-[120px]' },
+    { key: 'purpose',              label: 'Purpose',              w: 'min-w-[240px]' },
+    { key: 'resources_needed',     label: 'Resources Needed',     w: 'min-w-[180px]' },
+    { key: 'input',                label: 'Input / Trigger',      w: 'min-w-[160px]' },
     { key: 'how_we_know_complete', label: 'How We Know Complete', w: 'min-w-[180px]' },
   ],
   roles: [
     { key: 'role_name',   label: 'Role Name',   w: 'min-w-[160px]' },
     { key: 'description', label: 'Description', w: 'min-w-[260px]' },
     { key: 'status',      label: 'Status',      w: 'min-w-[140px]' },
+    { key: 'name',        label: 'Employee',    w: 'min-w-[140px]', nestedIn: 'employees' },
   ],
   employees: [
     { key: 'name',         label: 'Name',         w: 'min-w-[160px]' },
     { key: 'email',        label: 'Email',        w: 'min-w-[200px]' },
     { key: 'phone_number', label: 'Phone Number', w: 'min-w-[140px]' },
+    { key: 'role_name',    label: 'Role',         w: 'min-w-[160px]', nestedIn: 'roles' },
   ],
   services: [
-    { key: 'service_name', label: 'Service Name',    w: 'min-w-[180px]' },
-    { key: 'status',       label: 'Status',           w: 'min-w-[130px]' },
-    { key: 'category',     label: 'Category',         w: 'min-w-[150px]' },
-    { key: 'primary_type', label: 'Primary Type',     w: 'min-w-[120px]' },
-    { key: 'duration',     label: 'Duration (min)',   w: 'min-w-[110px]' },
+    { key: 'service_name', label: 'Service Name',  w: 'min-w-[180px]' },
+    { key: 'status',       label: 'Status',        w: 'min-w-[130px]' },
+    { key: 'category',     label: 'Category',      w: 'min-w-[150px]' },
+    { key: 'primary_type', label: 'Primary Type',  w: 'min-w-[120px]' },
+    { key: 'duration',     label: 'Duration (min)',w: 'min-w-[110px]' },
+    { key: 'name',         label: 'Performed By',  w: 'min-w-[140px]', nestedIn: 'employees' },
+    { key: 'plan_name',    label: 'Membership',    w: 'min-w-[140px]', nestedIn: 'membership' },
   ],
   membership: [
     { key: 'plan_name',           label: 'Plan Name',          w: 'min-w-[160px]' },
@@ -121,6 +129,18 @@ const TABLE_NAMES: Record<TabKey, string> = {
   employees:      'employees',
   services:       'services',
   membership:     'membership',
+}
+
+// Supabase select strings — embed joined tables for relation columns
+const SELECT_FIELDS: Record<TabKey, string> = {
+  core_functions: '*',
+  systems:        '*, core_functions(core_function_name)',
+  processes:      '*',
+  sops:           '*',
+  roles:          '*, employees(name)',
+  employees:      '*, roles(role_name)',
+  services:       '*, employees!linked_performed_by(name), membership(plan_name)',
+  membership:     '*',
 }
 
 const NAME_KEY: Record<TabKey, string> = {
@@ -166,9 +186,10 @@ const FORM_FIELDS: Record<TabKey, FieldDef[]> = {
     { key: 'linked_core_function_id', label: 'Linked Core Function', type: 'relation', relationTable: 'core_functions', relationLabel: 'core_function_name' },
   ],
   processes: [
-    { key: 'process_name',     label: 'Process Name',  type: 'text',     required: true, placeholder: 'e.g. Claims Submission' },
-    { key: 'status',           label: 'Status',         type: 'select',   options: PROCESS_STATUSES },
-    { key: 'linked_system_id', label: 'Linked System',  type: 'relation', relationTable: 'systems', relationLabel: 'system_name' },
+    { key: 'process_name',     label: 'Process Name',   type: 'text',     required: true, placeholder: 'e.g. Claims Submission' },
+    { key: 'status',           label: 'Status',          type: 'select',   options: PROCESS_STATUSES },
+    { key: 'linked_system_id', label: 'Linked System',   type: 'relation', relationTable: 'systems', relationLabel: 'system_name' },
+    { key: 'linked_role_id',   label: 'Role Associated', type: 'relation', relationTable: 'roles',   relationLabel: 'role_name' },
     { key: 'purpose',          label: 'Purpose',         type: 'textarea', placeholder: 'What is the goal of this process?' },
     { key: 'process_detail',   label: 'Process Detail',  type: 'textarea', rows: 5, placeholder: 'Step-by-step description of how this process works…' },
   ],
@@ -176,6 +197,7 @@ const FORM_FIELDS: Record<TabKey, FieldDef[]> = {
     { key: 'sop_name',             label: 'SOP Name',                type: 'text',     required: true, placeholder: 'e.g. How to Submit a Clean Claim' },
     { key: 'status',               label: 'Status',                   type: 'select',   options: PROCESS_STATUSES },
     { key: 'linked_process_id',    label: 'Linked Process',           type: 'relation', relationTable: 'processes', relationLabel: 'process_name' },
+    { key: 'linked_role_id',       label: 'Role Associated',          type: 'relation', relationTable: 'roles',     relationLabel: 'role_name' },
     { key: 'purpose',              label: 'Purpose',                   type: 'textarea', placeholder: 'What is the purpose of this SOP?' },
     { key: 'resources_needed',     label: 'Resources Needed',          type: 'textarea', placeholder: 'What tools, systems, or materials are required?' },
     { key: 'input',                label: 'Input / Trigger',           type: 'text',     placeholder: 'What triggers or initiates this SOP?' },
@@ -184,35 +206,39 @@ const FORM_FIELDS: Record<TabKey, FieldDef[]> = {
     { key: 'faqs',                 label: 'FAQs',                      type: 'textarea', rows: 4, placeholder: 'Frequently asked questions about this SOP…' },
   ],
   roles: [
-    { key: 'role_name',          label: 'Role Name',      type: 'text',     required: true, placeholder: 'e.g. Billing Staff' },
-    { key: 'status',             label: 'Status',          type: 'select',   options: ['Not Filled', 'Filled', 'Temporarily Filled'] },
-    { key: 'description',        label: 'Description',     type: 'textarea', rows: 4, placeholder: 'What this role does and is responsible for…' },
-    { key: 'linked_employee_id', label: 'Linked Employee', type: 'relation', relationTable: 'employees', relationLabel: 'name' },
+    { key: 'role_name',               label: 'Role Name',           type: 'text',     required: true, placeholder: 'e.g. Billing Staff' },
+    { key: 'status',                  label: 'Status',               type: 'select',   options: ['Not Filled', 'Filled', 'Temporarily Filled'] },
+    { key: 'description',             label: 'Description',          type: 'textarea', rows: 4, placeholder: 'What this role does and is responsible for…' },
+    { key: 'linked_employee_id',      label: 'Linked Employee',      type: 'relation', relationTable: 'employees',      relationLabel: 'name' },
+    { key: 'linked_core_function_id', label: 'Linked Core Function', type: 'relation', relationTable: 'core_functions', relationLabel: 'core_function_name' },
+    { key: 'linked_system_id',        label: 'Linked System',        type: 'relation', relationTable: 'systems',        relationLabel: 'system_name' },
+    { key: 'linked_process_id',       label: 'Linked Process',       type: 'relation', relationTable: 'processes',      relationLabel: 'process_name' },
+    { key: 'linked_sop_id',           label: 'Linked SOP',           type: 'relation', relationTable: 'sops',           relationLabel: 'sop_name' },
   ],
   employees: [
-    { key: 'name',           label: 'Name',         type: 'text',  required: true, placeholder: 'e.g. Michael Johnson' },
-    { key: 'email',          label: 'Email',         type: 'email', placeholder: 'michael@practice.com' },
-    { key: 'phone_number',   label: 'Phone Number',  type: 'tel',   placeholder: '+1 555 000 0000' },
+    { key: 'name',           label: 'Name',         type: 'text',     required: true, placeholder: 'e.g. Michael Johnson' },
+    { key: 'email',          label: 'Email',         type: 'email',    placeholder: 'michael@practice.com' },
+    { key: 'phone_number',   label: 'Phone Number',  type: 'tel',      placeholder: '+1 555 000 0000' },
     { key: 'linked_role_id', label: 'Linked Role',   type: 'relation', relationTable: 'roles', relationLabel: 'role_name' },
   ],
   services: [
-    { key: 'service_name',         label: 'Service Name',    type: 'text',     required: true, placeholder: 'e.g. Annual Wellness Visit' },
-    { key: 'status',               label: 'Status',           type: 'select',   options: ['Currently In Use', 'Paused', 'Not In Use'] },
-    { key: 'category',             label: 'Category',         type: 'select',   options: ['', 'Preventative', 'Problem-Based', 'Wellness/Optimization', 'Procedure', 'Non-Revenue'] },
-    { key: 'primary_type',         label: 'Primary Type',     type: 'select',   options: ['Insurance', 'Cash'] },
-    { key: 'duration',             label: 'Duration (minutes)', type: 'number', placeholder: '30' },
-    { key: 'linked_performed_by',  label: 'Performed By',     type: 'relation', relationTable: 'employees', relationLabel: 'name' },
-    { key: 'linked_membership_id', label: 'Linked Membership',type: 'relation', relationTable: 'membership', relationLabel: 'plan_name' },
+    { key: 'service_name',         label: 'Service Name',     type: 'text',     required: true, placeholder: 'e.g. Annual Wellness Visit' },
+    { key: 'status',               label: 'Status',            type: 'select',   options: ['Currently In Use', 'Paused', 'Not In Use'] },
+    { key: 'category',             label: 'Category',          type: 'select',   options: ['', 'Preventative', 'Problem-Based', 'Wellness/Optimization', 'Procedure', 'Non-Revenue'] },
+    { key: 'primary_type',         label: 'Primary Type',      type: 'select',   options: ['Insurance', 'Cash'] },
+    { key: 'duration',             label: 'Duration (minutes)',type: 'number',   placeholder: '30' },
+    { key: 'linked_performed_by',  label: 'Performed By',      type: 'relation', relationTable: 'employees',  relationLabel: 'name' },
+    { key: 'linked_membership_id', label: 'Linked Membership', type: 'relation', relationTable: 'membership', relationLabel: 'plan_name' },
   ],
   membership: [
-    { key: 'plan_name',           label: 'Plan Name',           type: 'text',    required: true, placeholder: 'e.g. Wellness Gold' },
-    { key: 'description',         label: 'Description',          type: 'textarea', placeholder: 'Description of what this plan includes…' },
-    { key: 'monthly_price',       label: 'Monthly Price ($)',    type: 'number',   placeholder: '199.00' },
-    { key: 'visits_included',     label: 'Visits Included',      type: 'number',   placeholder: '4' },
-    { key: 'iv_included',         label: 'IV Included',          type: 'number',   placeholder: '2' },
-    { key: 'shots_included',      label: 'Shots Included',       type: 'number',   placeholder: '1' },
-    { key: 'labs_included',       label: 'Labs Included',        type: 'text',     placeholder: 'e.g. Annual CBC, CMP, lipid panel' },
-    { key: 'supplement_discount', label: 'Supplement Discount',  type: 'text',     placeholder: 'e.g. 15% off all supplements' },
+    { key: 'plan_name',           label: 'Plan Name',          type: 'text',     required: true, placeholder: 'e.g. Wellness Gold' },
+    { key: 'description',         label: 'Description',         type: 'textarea', placeholder: 'Description of what this plan includes…' },
+    { key: 'monthly_price',       label: 'Monthly Price ($)',   type: 'number',   placeholder: '199.00' },
+    { key: 'visits_included',     label: 'Visits Included',     type: 'number',   placeholder: '4' },
+    { key: 'iv_included',         label: 'IV Included',         type: 'number',   placeholder: '2' },
+    { key: 'shots_included',      label: 'Shots Included',      type: 'number',   placeholder: '1' },
+    { key: 'labs_included',       label: 'Labs Included',       type: 'text',     placeholder: 'e.g. Annual CBC, CMP, lipid panel' },
+    { key: 'supplement_discount', label: 'Supplement Discount', type: 'text',     placeholder: 'e.g. 15% off all supplements' },
   ],
 }
 
@@ -245,8 +271,6 @@ function CrudModal({ tab, mode, initial, orgId, onClose, onSaved }: {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // ── FIX: cast query result as Row[] so .map() sees Record<string,unknown>
-  //         instead of Supabase's ParserError (triggered by template-literal selects)
   useEffect(() => {
     const relFields = fields.filter((f): f is RelationField => f.type === 'relation')
     if (!relFields.length) return
@@ -257,8 +281,6 @@ function CrudModal({ tab, mode, initial, orgId, onClose, onSaved }: {
           .select(`id, ${f.relationLabel}`)
           .eq('org_id', orgId)
           .order(f.relationLabel, { ascending: true })
-        // Cast: template-literal select strings defeat Supabase's type inference
-        // and produce ParserError<...> — cast to Row[] to keep .map() happy.
         const rows = (data ?? []) as unknown as Row[]
         return {
           key: f.key,
@@ -424,6 +446,7 @@ function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
 
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState(cols[0].key)
+  const [sortNested, setSortNested] = useState<string | undefined>(cols[0].nestedIn)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [detailRow, setDetailRow] = useState<Row | null>(null)
   const [modal, setModal] = useState<{ open: boolean; mode: 'create' | 'edit'; row: Row }>({ open: false, mode: 'create', row: {} })
@@ -437,26 +460,53 @@ function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
     enabled: !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from(tableName).select('*').eq('org_id', orgId).order(cols[0].key, { ascending: true })
+        .from(tableName)
+        .select(SELECT_FIELDS[tab])
+        .eq('org_id', orgId)
+        .order(cols[0].key, { ascending: true })
       if (error) { console.warn(`Table ${tableName}:`, error.message); return [] }
       return (data ?? []) as Row[]
     },
   })
 
+  const getNestedVal = (row: Row, key: string, nestedIn?: string): unknown => {
+    if (nestedIn) {
+      const nested = row[nestedIn] as Row | null
+      return nested?.[key] ?? null
+    }
+    return row[key]
+  }
+
   const filtered = (data ?? [])
-    .filter(row => !search || Object.values(row).some(v => String(v ?? '').toLowerCase().includes(search.toLowerCase())))
+    .filter(row => {
+      if (!search) return true
+      return Object.entries(row).some(([, v]) => {
+        if (v && typeof v === 'object') {
+          return Object.values(v as Record<string, unknown>).some(nv =>
+            String(nv ?? '').toLowerCase().includes(search.toLowerCase())
+          )
+        }
+        return String(v ?? '').toLowerCase().includes(search.toLowerCase())
+      })
+    })
     .sort((a, b) => {
-      const av = String(a[sortKey] ?? ''), bv = String(b[sortKey] ?? '')
+      const av = String(getNestedVal(a, sortKey, sortNested) ?? '')
+      const bv = String(getNestedVal(b, sortKey, sortNested) ?? '')
       return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av)
     })
 
-  function toggleSort(key: string) {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('asc') }
+  function toggleSort(col: ColDef) {
+    if (sortKey === col.key && sortNested === col.nestedIn) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(col.key)
+      setSortNested(col.nestedIn)
+      setSortDir('asc')
+    }
   }
 
-  function SortIcon({ col }: { col: string }) {
-    if (sortKey !== col) return <ChevronsUpDown size={11} className="text-[#6b5a47]" />
+  function SortIcon({ col }: { col: ColDef }) {
+    if (sortKey !== col.key || sortNested !== col.nestedIn) return <ChevronsUpDown size={11} className="text-[#6b5a47]" />
     return sortDir === 'asc' ? <ChevronUp size={11} className="text-[#c8843a]" /> : <ChevronDown size={11} className="text-[#c8843a]" />
   }
 
@@ -512,10 +562,10 @@ function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
             <thead>
               <tr className="bg-[#1e1409] border-b border-[#2e2016] sticky top-0 z-10">
                 {cols.map(col => (
-                  <th key={col.key} onClick={() => toggleSort(col.key)}
+                  <th key={`${col.nestedIn ?? ''}.${col.key}`} onClick={() => toggleSort(col)}
                     className={`${col.w ?? 'min-w-[140px]'} px-3 py-2 text-left font-medium
                       text-[#a08060] cursor-pointer hover:text-[#c4b49a] select-none whitespace-nowrap`}>
-                    <span className="inline-flex items-center gap-1">{col.label}<SortIcon col={col.key} /></span>
+                    <span className="inline-flex items-center gap-1">{col.label}<SortIcon col={col} /></span>
                   </th>
                 ))}
                 <th className="w-16 px-2 py-2 text-right text-[10px] font-medium text-[#6b5a47]">Actions</th>
@@ -548,11 +598,17 @@ function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
                     className={`border-b border-[#2e2016] cursor-pointer transition-colors group
                       ${isActive ? 'bg-[#c8843a]/10' : idx % 2 === 0 ? 'bg-[#1a1410]' : 'bg-[#1c1610]'}
                       hover:bg-[#c8843a]/5`}>
-                    {cols.map((col, ci) => (
-                      <td key={col.key} className={`px-3 py-2.5 max-w-[280px] ${ci === 0 ? 'font-medium text-[#c4b49a]' : ''}`}>
-                        {col.key === 'status' ? <StatusBadge val={row[col.key] as string} /> : <Cell val={row[col.key]} />}
-                      </td>
-                    ))}
+                    {cols.map((col, ci) => {
+                      const cellVal = getNestedVal(row, col.key, col.nestedIn)
+                      return (
+                        <td key={`${col.nestedIn ?? ''}.${col.key}`}
+                          className={`px-3 py-2.5 max-w-[280px] ${ci === 0 ? 'font-medium text-[#c4b49a]' : ''}`}>
+                          {col.key === 'status' && !col.nestedIn
+                            ? <StatusBadge val={row[col.key] as string} />
+                            : <Cell val={cellVal} />}
+                        </td>
+                      )
+                    })}
                     <td className="px-2 py-2.5 text-right">
                       <div className="inline-flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={e => openEdit(row, e)} title="Edit"
@@ -598,9 +654,11 @@ function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
                     <p className="text-[#6b5a47] mb-0.5 capitalize">{k.replace(/_/g, ' ')}</p>
                     {k === 'status'
                       ? <StatusBadge val={v as string} />
-                      : typeof v === 'string' && v.length > 100
-                        ? <p className="text-[#a08060] leading-relaxed whitespace-pre-wrap">{v}</p>
-                        : <p className="text-[#c4b49a]"><Cell val={v} /></p>}
+                      : typeof v === 'object' && v !== null
+                        ? <p className="text-[#c4b49a]">{Object.values(v as Record<string, unknown>).filter(Boolean).join(', ') || '—'}</p>
+                        : typeof v === 'string' && v.length > 100
+                          ? <p className="text-[#a08060] leading-relaxed whitespace-pre-wrap">{v}</p>
+                          : <p className="text-[#c4b49a]"><Cell val={v} /></p>}
                   </div>
                 ))}
             </div>
