@@ -465,7 +465,7 @@ function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
         .eq('org_id', orgId)
         .order(cols[0].key, { ascending: true })
       if (error) { console.warn(`Table ${tableName}:`, error.message); return [] }
-      return (data ?? []) as Row[]
+      return (data ?? []) as unknown as Row[]
     },
   })
 
