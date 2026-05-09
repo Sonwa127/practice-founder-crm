@@ -26,7 +26,7 @@ type Huddle = {
   present: string | null
   issues_assigned_today: string | null
   new_issues_raised_today: string | null
-  open_issues_carried_over: string | null   // ← ADDED: comma-sep issue IDs or descriptive text
+  open_issues_carried_over: string | null
   all_issues_have_owners: boolean | null
   charts_not_closed_yesterday: number | null
   claims_not_submitted_yesterday: number | null
@@ -45,11 +45,10 @@ const DEMO: Huddle[] = [
     huddle_end_time: '09:18', present: 'Dr. Evans, Markel, Michael, Receptionist',
     issues_assigned_today: 'Michael — resolve denied claims batch\nMarkel — follow up on MA coverage',
     new_issues_raised_today: 'Insurance verification backlog flagged',
-    open_issues_carried_over: null,
-    all_issues_have_owners: true,
+    open_issues_carried_over: null, all_issues_have_owners: true,
     charts_not_closed_yesterday: 2, claims_not_submitted_yesterday: 3,
     huddle_complete: true,
-    notes_summary: 'Short huddle. Two charts pending from yesterday — Dr. Evans to close by noon. Claims backlog being addressed by Michael.',
+    notes_summary: 'Short huddle. Two charts pending — Dr. Evans to close by noon. Claims backlog addressed by Michael.',
     submitted_by: null, created_at: new Date().toISOString(),
   },
   {
@@ -57,16 +56,14 @@ const DEMO: Huddle[] = [
     huddle_end_time: '09:22', present: 'Dr. Evans, Markel, Michael',
     issues_assigned_today: 'Markel — MA no-show coverage plan',
     new_issues_raised_today: 'MA no-show impacted 3 patient rooms',
-    open_issues_carried_over: null,
-    all_issues_have_owners: false,
+    open_issues_carried_over: null, all_issues_have_owners: false,
     charts_not_closed_yesterday: 0, claims_not_submitted_yesterday: 1,
     huddle_complete: true,
-    notes_summary: 'MA absence caused delays. Markel to source temp coverage. One claim still outstanding from Friday.',
+    notes_summary: 'MA absence caused delays. Markel to source temp coverage.',
     submitted_by: null, created_at: new Date(Date.now() - 86400000).toISOString(),
   },
 ]
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(d: string | null) {
   if (!d) return '—'
   return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
@@ -77,43 +74,31 @@ function NewHuddleModal({ orgId, onClose, onCreated }: {
   orgId: string; onClose: () => void; onCreated: () => void
 }) {
   const supabase = createClient()
-  const today = new Date().toISOString().split('T')[0]
+  const today    = new Date().toISOString().split('T')[0]
 
   const [form, setForm] = useState({
     date: today, huddle_end_time: '', present: '',
     issues_assigned_today: '', new_issues_raised_today: '',
     all_issues_have_owners: false,
     charts_not_closed_yesterday: '', claims_not_submitted_yesterday: '',
-    huddle_complete: false, notes_summary: '',
-    submitted_by: '',
+    huddle_complete: false, notes_summary: '', submitted_by: '',
   })
 
-  // ── ADDED: open issues for "carried over" multi-select
-  const [openIssues, setOpenIssues] = useState<IssueOption[]>([])
-  const [selectedIssueIds, setSelectedIssueIds] = useState<Set<string>>(new Set())
-
-  // ── ADDED: employees for submitted_by dropdown
-  const [employees, setEmployees] = useState<{ id: string; name: string }[]>([])
+  const [openIssues,        setOpenIssues]        = useState<IssueOption[]>([])
+  const [selectedIssueIds,  setSelectedIssueIds]  = useState<Set<string>>(new Set())
+  const [employees,         setEmployees]         = useState<{ id: string; name: string }[]>([])
+  const [saving, setSaving] = useState(false)
+  const [err, setErr]       = useState('')
 
   useEffect(() => {
-    // fetch open/investigating issues
     supabase.from('issues_breakdowns')
-      .select('id, issue_name, status')
-      .eq('org_id', orgId)
-      .in('status', ['Open', 'Investigating'])
-      .order('created_at', { ascending: false })
+      .select('id, issue_name, status').eq('org_id', orgId)
+      .in('status', ['Open', 'Investigating']).order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => setOpenIssues((data ?? []) as IssueOption[]))
 
-    // fetch employees
-    supabase.from('employees')
-      .select('id, name')
-      .eq('org_id', orgId)
-      .order('name')
+    supabase.from('employees').select('id, name').eq('org_id', orgId).order('name')
       .then(({ data }) => setEmployees((data ?? []) as { id: string; name: string }[]))
   }, [orgId])
-
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState('')
 
   const set = (k: string, v: string | boolean) => setForm(f => ({ ...f, [k]: v }))
 
@@ -128,29 +113,29 @@ function NewHuddleModal({ orgId, onClose, onCreated }: {
   async function handleSubmit() {
     if (!form.date) { setErr('Date is required.'); return }
     setSaving(true); setErr('')
-
-    // Store carried-over issue IDs as comma-separated string
     const carriedOver = selectedIssueIds.size > 0 ? [...selectedIssueIds].join(',') : null
-
     const { error } = await supabase.from('daily_huddle_log').insert({
-      org_id: orgId,
-      date: form.date,
-      huddle_end_time: form.huddle_end_time || null,
-      present: form.present || null,
-      issues_assigned_today: form.issues_assigned_today || null,
-      new_issues_raised_today: form.new_issues_raised_today || null,
-      open_issues_carried_over: carriedOver,
-      all_issues_have_owners: form.all_issues_have_owners,
-      charts_not_closed_yesterday: form.charts_not_closed_yesterday ? parseInt(form.charts_not_closed_yesterday as string) : null,
+      org_id:                       orgId,
+      date:                         form.date,
+      huddle_end_time:              form.huddle_end_time               || null,
+      present:                      form.present                       || null,
+      issues_assigned_today:        form.issues_assigned_today         || null,
+      new_issues_raised_today:      form.new_issues_raised_today       || null,
+      open_issues_carried_over:     carriedOver,
+      all_issues_have_owners:       form.all_issues_have_owners,
+      charts_not_closed_yesterday:  form.charts_not_closed_yesterday   ? parseInt(form.charts_not_closed_yesterday as string) : null,
       claims_not_submitted_yesterday: form.claims_not_submitted_yesterday ? parseInt(form.claims_not_submitted_yesterday as string) : null,
-      huddle_complete: form.huddle_complete,
-      notes_summary: form.notes_summary || null,
-      submitted_by: form.submitted_by || null,
+      huddle_complete:              form.huddle_complete,
+      notes_summary:                form.notes_summary                 || null,
+      submitted_by:                 form.submitted_by                  || null,
     })
     setSaving(false)
     if (error) { setErr(error.message); return }
     onCreated(); onClose()
   }
+
+  const inputCls = 'w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none transition-colors'
+  const labelCls = 'block text-[#a08060] text-xs mb-1'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -169,114 +154,110 @@ function NewHuddleModal({ orgId, onClose, onCreated }: {
             </div>
           )}
 
+          {/* Date + End Time */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[#a08060] text-xs mb-1">Date *</label>
-              <input type="date" value={form.date} onChange={e => set('date', e.target.value)}
-                className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none" />
+              <label className={labelCls}>Date *</label>
+              <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className="block text-[#a08060] text-xs mb-1">Huddle End Time</label>
-              <input type="time" value={form.huddle_end_time} onChange={e => set('huddle_end_time', e.target.value)}
-                className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none" />
+              <label className={labelCls}>Huddle End Time</label>
+              <input type="time" value={form.huddle_end_time} onChange={e => set('huddle_end_time', e.target.value)} className={inputCls} />
             </div>
           </div>
 
-          {/* ADDED: Submitted By */}
+          {/* Submitted By */}
           <div>
-            <label className="block text-[#a08060] text-xs mb-1">Submitted By</label>
-            <select value={form.submitted_by} onChange={e => set('submitted_by', e.target.value)}
-              className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none">
+            <label className={labelCls}>Submitted By</label>
+            <select value={form.submitted_by} onChange={e => set('submitted_by', e.target.value)} className={inputCls}>
               <option value="">— Select —</option>
               {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>
           </div>
 
+          {/* Present */}
           <div>
-            <label className="block text-[#a08060] text-xs mb-1">Present</label>
+            <label className={labelCls}>Present</label>
             <input value={form.present} onChange={e => set('present', e.target.value)}
-              placeholder="Dr. Evans, Markel, Michael…"
-              className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none" />
+              placeholder="Dr. Evans, Markel, Michael…" className={inputCls} />
           </div>
 
+          {/* Charts / Claims */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[#a08060] text-xs mb-1">Charts Not Closed Yesterday</label>
+              <label className={labelCls}>Charts Not Closed Yesterday</label>
               <input type="number" min="0" value={form.charts_not_closed_yesterday}
-                onChange={e => set('charts_not_closed_yesterday', e.target.value)}
-                className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none" />
+                onChange={e => set('charts_not_closed_yesterday', e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className="block text-[#a08060] text-xs mb-1">Claims Not Submitted Yesterday</label>
+              <label className={labelCls}>Claims Not Submitted Yesterday</label>
               <input type="number" min="0" value={form.claims_not_submitted_yesterday}
-                onChange={e => set('claims_not_submitted_yesterday', e.target.value)}
-                className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none" />
+                onChange={e => set('claims_not_submitted_yesterday', e.target.value)} className={inputCls} />
             </div>
           </div>
 
-          {/* ADDED: Open Issues Carried Over — multi-select from open issues */}
+          {/* Open Issues Carried Over — multi-select */}
           <div>
-            <label className="block text-[#a08060] text-xs mb-1.5">
+            <label className={labelCls}>
               Open Issues Carried Over
               <span className="text-[#6b5a47] ml-1.5 font-normal normal-case">
                 ({openIssues.length} open/investigating)
               </span>
             </label>
             {openIssues.length === 0 ? (
-              <p className="text-[#6b5a47] text-xs italic px-1">No open issues found — log issues first in Issues &amp; Breakdowns.</p>
+              <p className="text-[#6b5a47] text-xs italic px-1">No open issues — log in Issues &amp; Breakdowns first.</p>
             ) : (
-              <div className="border border-[#2e2016] rounded-lg max-h-32 overflow-y-auto divide-y divide-[#2e2016]">
+              <div className="border border-[#2e2016] rounded-lg max-h-36 overflow-y-auto divide-y divide-[#2e2016]">
                 {openIssues.map(issue => (
-                  <label key={issue.id}
-                    className="flex items-center gap-2.5 px-3 py-1.5 cursor-pointer hover:bg-[#2e2016]/40 transition-colors">
-                    <button type="button"
-                      onClick={() => toggleIssue(issue.id)}
+                  <label key={issue.id} className="flex items-center gap-2.5 px-3 py-1.5 cursor-pointer hover:bg-[#2e2016]/40 transition-colors">
+                    <button type="button" onClick={() => toggleIssue(issue.id)}
                       className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-colors
                         ${selectedIssueIds.has(issue.id) ? 'bg-[#c8843a] border-[#c8843a]' : 'border-[#2e2016] bg-[#120d08]'}`}>
                       {selectedIssueIds.has(issue.id) && <Check size={9} className="text-white" />}
                     </button>
                     <span className="text-[#c4b49a] text-xs flex-1 truncate">{issue.issue_name}</span>
-                    <span className={`text-[10px] shrink-0 ${issue.status === 'Open' ? 'text-[#f87171]' : 'text-[#facc15]'}`}>
-                      {issue.status}
-                    </span>
+                    <span className={`text-[10px] shrink-0 ${issue.status === 'Open' ? 'text-[#f87171]' : 'text-[#facc15]'}`}>{issue.status}</span>
                   </label>
                 ))}
               </div>
             )}
             {selectedIssueIds.size > 0 && (
-              <p className="text-[#6b5a47] text-[10px] mt-1">{selectedIssueIds.size} issue{selectedIssueIds.size !== 1 ? 's' : ''} selected</p>
+              <p className="text-[#6b5a47] text-[10px] mt-1">{selectedIssueIds.size} selected</p>
             )}
           </div>
 
+          {/* Issues Assigned */}
           <div>
-            <label className="block text-[#a08060] text-xs mb-1">Issues Assigned Today</label>
+            <label className={labelCls}>Issues Assigned Today</label>
             <textarea value={form.issues_assigned_today} onChange={e => set('issues_assigned_today', e.target.value)}
               placeholder="One per line: Name — task…" rows={3}
-              className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none resize-none" />
+              className={inputCls + ' resize-none'} />
           </div>
 
+          {/* New Issues Raised */}
           <div>
-            <label className="block text-[#a08060] text-xs mb-1">New Issues Raised Today</label>
+            <label className={labelCls}>New Issues Raised Today</label>
             <textarea value={form.new_issues_raised_today} onChange={e => set('new_issues_raised_today', e.target.value)}
               placeholder="Issues that came up in today's huddle…" rows={2}
-              className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none resize-none" />
+              className={inputCls + ' resize-none'} />
           </div>
 
+          {/* Notes */}
           <div>
-            <label className="block text-[#a08060] text-xs mb-1">Notes / Summary</label>
+            <label className={labelCls}>Notes / Summary</label>
             <textarea value={form.notes_summary} onChange={e => set('notes_summary', e.target.value)}
               placeholder="Brief summary of what was discussed and decided…" rows={3}
-              className="w-full bg-[#120d08] border border-[#2e2016] focus:border-[#c8843a] text-[#c4b49a] text-sm rounded px-3 py-2 outline-none resize-none" />
+              className={inputCls + ' resize-none'} />
           </div>
 
-          <div className="flex flex-col gap-2 pt-1">
+          {/* Checkboxes */}
+          <div className="flex flex-col gap-2.5 pt-1">
             {[
               { key: 'all_issues_have_owners', label: 'All issues have owners?' },
-              { key: 'huddle_complete', label: 'Huddle complete?' },
+              { key: 'huddle_complete',         label: 'Huddle complete?' },
             ].map(({ key, label }) => (
               <label key={key} className="flex items-center gap-2.5 cursor-pointer group">
-                <button type="button"
-                  onClick={() => set(key, !form[key as keyof typeof form])}
+                <button type="button" onClick={() => set(key, !form[key as keyof typeof form])}
                   className={`w-4 h-4 rounded border flex items-center justify-center transition-colors
                     ${form[key as keyof typeof form] ? 'bg-[#c8843a] border-[#c8843a]' : 'border-[#2e2016] bg-[#120d08] group-hover:border-[#c8843a]/50'}`}>
                   {form[key as keyof typeof form] && <Check size={10} className="text-white" />}
@@ -300,24 +281,24 @@ function NewHuddleModal({ orgId, onClose, onCreated }: {
   )
 }
 
-// ─── Main page ─────────────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function HuddlePage() {
-  const supabase = createClient()
+  const supabase    = createClient()
   const queryClient = useQueryClient()
   const { orgId, canViewAll } = useOrgUser()
   const { resolveName } = useEmployeeNames(orgId ?? undefined)
   const canCreate = canViewAll
 
-  const [search, setSearch]         = useState('')
-  const [rowHeight, setRowHeight]   = useState<RowHeight>('medium')
-  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'date', dir: 'desc' })
+  const [search, setSearch]                 = useState('')
+  const [rowHeight, setRowHeight]           = useState<RowHeight>('medium')
+  const [sortConfig, setSortConfig]         = useState<SortConfig>({ key: 'date', dir: 'desc' })
   const [filterComplete, setFilterComplete] = useState('')
   const [selectedIds, setSelectedIds]       = useState<Set<string>>(new Set())
   const [detailRow, setDetailRow]           = useState<Huddle | null>(null)
   const [showNewModal, setShowNewModal]     = useState(false)
   const [showFilters, setShowFilters]       = useState(false)
 
-  // fetch open issues so we can resolve IDs in detail panel
+  // Map issue IDs → names for detail panel
   const [issueMap, setIssueMap] = useState<Record<string, string>>({})
   useEffect(() => {
     if (!orgId) return
@@ -334,27 +315,21 @@ export default function HuddlePage() {
     enabled: !!orgId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('daily_huddle_log')
-        .select('*')
-        .eq('org_id', orgId!)
+        .from('daily_huddle_log').select('*').eq('org_id', orgId!)
         .order('date', { ascending: false })
       if (error) throw error
       return (data ?? []) as Huddle[]
     },
   })
 
-  const rows  = huddles ?? (isLoading ? [] : DEMO)
+  const rows   = huddles ?? (isLoading ? [] : DEMO)
   const isDemo = !huddles && !isLoading
 
   const filtered = useMemo(() => {
     let r = rows
     if (search) {
       const q = search.toLowerCase()
-      r = r.filter(x =>
-        (x.date ?? '').includes(q) ||
-        (x.present ?? '').toLowerCase().includes(q) ||
-        (x.notes_summary ?? '').toLowerCase().includes(q)
-      )
+      r = r.filter(x => (x.date ?? '').includes(q) || (x.present ?? '').toLowerCase().includes(q) || (x.notes_summary ?? '').toLowerCase().includes(q))
     }
     if (filterComplete === 'yes') r = r.filter(x => x.huddle_complete === true)
     if (filterComplete === 'no')  r = r.filter(x => !x.huddle_complete)
@@ -367,43 +342,52 @@ export default function HuddlePage() {
     return r
   }, [rows, search, filterComplete, sortConfig])
 
+  const total    = filtered.length
+  const complete = filtered.filter(x => x.huddle_complete).length
+
   function toggleSort(key: keyof Huddle) {
     setSortConfig(prev => prev?.key === key
       ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
       : { key, dir: 'asc' })
   }
-
   function SortIcon({ col }: { col: keyof Huddle }) {
     if (sortConfig?.key !== col) return <ChevronsUpDown size={11} className="text-[#6b5a47]" />
-    return sortConfig.dir === 'asc'
-      ? <ChevronUp size={11} className="text-[#c8843a]" />
-      : <ChevronDown size={11} className="text-[#c8843a]" />
+    return sortConfig.dir === 'asc' ? <ChevronUp size={11} className="text-[#c8843a]" /> : <ChevronDown size={11} className="text-[#c8843a]" />
   }
-
   function BoolBadge({ val }: { val: boolean | null }) {
-    if (val === null || val === undefined) return <span className="text-[#6b5a47]">—</span>
+    if (val == null) return <span className="text-[#6b5a47]">—</span>
     return val
       ? <span className="inline-flex items-center gap-1 text-[#86efac]"><Check size={11} />Yes</span>
       : <span className="inline-flex items-center gap-1 text-[#f87171]"><X size={11} />No</span>
   }
 
   const rowPy = rowHeight === 'compact' ? 'py-1' : rowHeight === 'medium' ? 'py-2.5' : 'py-4'
-  const total    = filtered.length
-  const complete = filtered.filter(x => x.huddle_complete).length
 
   function exportCsv() {
-    const headers = ['Date', 'End Time', 'Present', 'Complete', 'Charts Pending', 'Claims Pending', 'All Issues Have Owners', 'Submitted By']
+    const headers = ['Date', 'End Time', 'Present', 'Complete', 'Charts Pending', 'Claims Pending', 'All Issues Owned', 'Submitted By']
     const csv = [headers, ...filtered.map(r => [
       r.date, r.huddle_end_time ?? '', r.present ?? '',
       r.huddle_complete ? 'Yes' : 'No',
-      r.charts_not_closed_yesterday ?? 0,
-      r.claims_not_submitted_yesterday ?? 0,
+      r.charts_not_closed_yesterday ?? 0, r.claims_not_submitted_yesterday ?? 0,
       r.all_issues_have_owners ? 'Yes' : 'No',
       r.submitted_by ? resolveName(r.submitted_by) : ''
     ])].map(r => r.map(c => `"${c}"`).join(',')).join('\n')
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv]))
     a.download = 'huddle-log.csv'; a.click()
   }
+
+  const COLS: { key: keyof Huddle; label: string; icon: React.ReactNode; w: string }[] = [
+    { key: 'date',                           label: 'Date',             icon: <Calendar size={11} />,    w: 'min-w-[160px]' },
+    { key: 'huddle_end_time',                label: 'End Time',         icon: <Clock size={11} />,       w: 'min-w-[90px]' },
+    { key: 'huddle_complete',                label: 'Complete?',        icon: <CheckSquare size={11} />, w: 'min-w-[90px]' },
+    { key: 'present',                        label: 'Present',          icon: <Users size={11} />,       w: 'min-w-[180px]' },
+    { key: 'charts_not_closed_yesterday',    label: 'Charts Pending',   icon: <FileText size={11} />,    w: 'min-w-[110px]' },
+    { key: 'claims_not_submitted_yesterday', label: 'Claims Pending',   icon: <AlertTriangle size={11} />,w: 'min-w-[110px]' },
+    { key: 'all_issues_have_owners',         label: 'Issues Owned?',    icon: <Check size={11} />,       w: 'min-w-[110px]' },
+    { key: 'open_issues_carried_over',       label: 'Carried Over',     icon: <AlertTriangle size={11} />,w: 'min-w-[110px]' },
+    { key: 'submitted_by',                   label: 'Submitted By',     icon: <Users size={11} />,       w: 'min-w-[120px]' },
+    { key: 'notes_summary',                  label: 'Notes',            icon: <FileText size={11} />,    w: 'min-w-[220px]' },
+  ]
 
   return (
     <div className="flex flex-col h-full bg-[#1a1410] text-[#c4b49a]">
@@ -461,7 +445,6 @@ export default function HuddlePage() {
         )}
       </div>
 
-      {/* Filter bar */}
       {showFilters && (
         <div className="px-4 py-2.5 border-b border-[#2e2016] bg-[#1e1409] flex items-center gap-3">
           <span className="text-[#6b5a47] text-xs font-medium">Filters:</span>
@@ -472,36 +455,22 @@ export default function HuddlePage() {
             <option value="no">Incomplete Only</option>
           </select>
           {filterComplete && (
-            <button onClick={() => setFilterComplete('')}
-              className="flex items-center gap-1 text-xs text-[#f87171]"><X size={11} />Clear</button>
+            <button onClick={() => setFilterComplete('')} className="flex items-center gap-1 text-xs text-[#f87171]"><X size={11} />Clear</button>
           )}
         </div>
       )}
 
-      {/* Table + detail */}
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-auto">
-          <table className="w-full border-collapse text-xs min-w-[1000px]">
+          <table className="w-full border-collapse text-xs min-w-[1100px]">
             <thead>
               <tr className="bg-[#1e1409] border-b border-[#2e2016] sticky top-0 z-10">
-                <th className="pf-sticky-checkbox w-8 px-2 py-2">
-                  <input type="checkbox"
-                    checked={selectedIds.size === filtered.length && filtered.length > 0}
+                <th className="w-8 px-2 py-2">
+                  <input type="checkbox" checked={selectedIds.size === filtered.length && filtered.length > 0}
                     onChange={e => setSelectedIds(e.target.checked ? new Set(filtered.map(r => r.id)) : new Set())}
                     className="accent-[#c8843a]" />
                 </th>
-                {[
-                  { key: 'date' as keyof Huddle,                           label: 'Date',                icon: <Calendar size={11} />, w: 'min-w-[160px]' },
-                  { key: 'huddle_end_time' as keyof Huddle,                label: 'End Time',            icon: <Clock size={11} />, w: 'min-w-[90px]' },
-                  { key: 'huddle_complete' as keyof Huddle,                label: 'Complete?',           icon: <CheckSquare size={11} />, w: 'min-w-[90px]' },
-                  { key: 'present' as keyof Huddle,                        label: 'Present',             icon: <Users size={11} />, w: 'min-w-[180px]' },
-                  { key: 'charts_not_closed_yesterday' as keyof Huddle,    label: 'Charts Pending',      icon: <FileText size={11} />, w: 'min-w-[110px]' },
-                  { key: 'claims_not_submitted_yesterday' as keyof Huddle, label: 'Claims Pending',      icon: <AlertTriangle size={11} />, w: 'min-w-[110px]' },
-                  { key: 'all_issues_have_owners' as keyof Huddle,         label: 'All Issues Owned?',   icon: <Check size={11} />, w: 'min-w-[120px]' },
-                  { key: 'open_issues_carried_over' as keyof Huddle,       label: 'Carried Over',        icon: <AlertTriangle size={11} />, w: 'min-w-[120px]' }, // ← ADDED
-                  { key: 'submitted_by' as keyof Huddle,                   label: 'Submitted By',        icon: <Users size={11} />, w: 'min-w-[120px]' }, // ← ADDED
-                  { key: 'notes_summary' as keyof Huddle,                  label: 'Notes',               icon: <FileText size={11} />, w: 'min-w-[220px]' },
-                ].map(col => (
+                {COLS.map(col => (
                   <th key={col.key} onClick={() => toggleSort(col.key)}
                     className={`${col.w} px-3 py-2 text-left font-medium text-[#a08060] cursor-pointer hover:text-[#c4b49a] select-none whitespace-nowrap`}>
                     <span className="inline-flex items-center gap-1">{col.icon}{col.label}<SortIcon col={col.key} /></span>
@@ -511,39 +480,29 @@ export default function HuddlePage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={11} className="text-center py-16 text-[#6b5a47]">
+                <tr><td colSpan={COLS.length + 1} className="text-center py-16 text-[#6b5a47]">
                   <Loader2 size={20} className="animate-spin inline mr-2" />Loading huddle log…
                 </td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={11} className="text-center py-16 text-[#6b5a47]">No huddle records found.</td></tr>
+                <tr><td colSpan={COLS.length + 1} className="text-center py-16 text-[#6b5a47]">No records found.</td></tr>
               ) : filtered.map((row, idx) => {
-                const selected = selectedIds.has(row.id)
-                const isActive = detailRow?.id === row.id
-                const hasWarning = (row.charts_not_closed_yesterday ?? 0) > 0 || (row.claims_not_submitted_yesterday ?? 0) > 0
-                // resolve carried-over issue count
+                const selected    = selectedIds.has(row.id)
+                const isActive    = detailRow?.id === row.id
+                const hasWarning  = (row.charts_not_closed_yesterday ?? 0) > 0 || (row.claims_not_submitted_yesterday ?? 0) > 0
                 const carriedCount = row.open_issues_carried_over
-                  ? row.open_issues_carried_over.split(',').filter(Boolean).length
-                  : 0
-
+                  ? row.open_issues_carried_over.split(',').filter(Boolean).length : 0
                 return (
-                  <tr key={row.id}
-                    onClick={() => setDetailRow(isActive ? null : row)}
+                  <tr key={row.id} onClick={() => setDetailRow(isActive ? null : row)}
                     className={`border-b border-[#2e2016] cursor-pointer transition-colors
-                      ${selected ? 'pf-row-selected' : ''}
+                      ${selected ? 'bg-[#c8843a]/5' : ''}
                       ${isActive ? 'bg-[#c8843a]/10' : idx % 2 === 0 ? 'bg-[#1a1410]' : 'bg-[#1c1610]'}
                       hover:bg-[#c8843a]/5`}>
-
-                    <td className="pf-sticky-checkbox px-2" onClick={e => e.stopPropagation()}>
+                    <td className="px-2" onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={selected}
-                        onChange={e => {
-                          const next = new Set(selectedIds)
-                          e.target.checked ? next.add(row.id) : next.delete(row.id)
-                          setSelectedIds(next)
-                        }}
+                        onChange={e => { const n = new Set(selectedIds); e.target.checked ? n.add(row.id) : n.delete(row.id); setSelectedIds(n) }}
                         className="accent-[#c8843a]" />
                     </td>
-
-                    <td className={`pf-sticky-cell px-3 ${rowPy} font-medium text-[#c4b49a]`} style={{ left: 32 }}>
+                    <td className={`px-3 ${rowPy} font-medium text-[#c4b49a]`}>
                       <span className="flex items-center gap-1.5">
                         {hasWarning && <AlertTriangle size={11} className="text-[#fb923c] shrink-0" />}
                         {fmtDate(row.date)}
@@ -559,17 +518,13 @@ export default function HuddlePage() {
                       {row.claims_not_submitted_yesterday ?? 0}
                     </td>
                     <td className={`px-3 ${rowPy}`}><BoolBadge val={row.all_issues_have_owners} /></td>
-                    {/* ADDED: carried over count */}
                     <td className={`px-3 ${rowPy} text-center tabular-nums ${carriedCount > 0 ? 'text-[#fb923c]' : 'text-[#6b5a47]'}`}>
                       {carriedCount > 0 ? carriedCount : '—'}
                     </td>
-                    {/* ADDED: submitted by */}
                     <td className={`px-3 ${rowPy} text-[#a08060]`}>
                       {row.submitted_by ? resolveName(row.submitted_by) : <span className="text-[#6b5a47]">—</span>}
                     </td>
-                    <td className={`px-3 ${rowPy} text-[#6b5a47] max-w-[240px] truncate`}>
-                      {row.notes_summary ?? '—'}
-                    </td>
+                    <td className={`px-3 ${rowPy} text-[#6b5a47] max-w-[240px] truncate`}>{row.notes_summary ?? '—'}</td>
                   </tr>
                 )
               })}
@@ -615,21 +570,18 @@ export default function HuddlePage() {
             </div>
 
             <div className="px-4 py-3 space-y-3 text-xs">
-              {/* ADDED: submitted by in detail */}
               {detailRow.submitted_by && (
                 <div>
                   <p className="text-[#6b5a47] mb-1 flex items-center gap-1"><Users size={11} />Submitted By</p>
                   <p className="text-[#c4b49a]">{resolveName(detailRow.submitted_by)}</p>
                 </div>
               )}
-
               {detailRow.present && (
                 <div>
                   <p className="text-[#6b5a47] mb-1 flex items-center gap-1"><Users size={11} />Present</p>
                   <p className="text-[#a08060]">{detailRow.present}</p>
                 </div>
               )}
-
               <div className="grid grid-cols-2 gap-3">
                 <div className={`rounded-lg px-3 py-2 border ${(detailRow.charts_not_closed_yesterday ?? 0) > 0 ? 'border-[#fb923c]/30 bg-[#2e1a10]/40' : 'border-[#2e2016] bg-[#120d08]'}`}>
                   <p className="text-[#6b5a47] text-[10px] mb-0.5">Charts Not Closed</p>
@@ -644,16 +596,12 @@ export default function HuddlePage() {
                   </p>
                 </div>
               </div>
-
               <div className="flex items-center gap-3">
                 <span className="text-[#6b5a47] flex items-center gap-1"><CheckSquare size={11} />All issues have owners?</span>
                 {detailRow.all_issues_have_owners
                   ? <span className="text-[#86efac] flex items-center gap-1"><Check size={11} />Yes</span>
-                  : <span className="text-[#f87171] flex items-center gap-1"><X size={11} />No</span>
-                }
+                  : <span className="text-[#f87171] flex items-center gap-1"><X size={11} />No</span>}
               </div>
-
-              {/* ADDED: Open issues carried over in detail panel */}
               {detailRow.open_issues_carried_over && (
                 <div className="border-t border-[#2e2016] pt-3">
                   <p className="text-[#6b5a47] mb-1.5 font-medium flex items-center gap-1">
@@ -662,27 +610,25 @@ export default function HuddlePage() {
                   <div className="space-y-1">
                     {detailRow.open_issues_carried_over.split(',').filter(Boolean).map(id => (
                       <p key={id} className="text-[#a08060] flex items-start gap-1.5">
-                        <span className="text-[#fb923c] mt-0.5 shrink-0">→</span>
+                        <span className="text-[#fb923c] shrink-0">→</span>
                         {issueMap[id] ?? id}
                       </p>
                     ))}
                   </div>
                 </div>
               )}
-
               {detailRow.issues_assigned_today && (
                 <div className="border-t border-[#2e2016] pt-3">
                   <p className="text-[#6b5a47] mb-1.5 font-medium">Issues Assigned Today</p>
                   <div className="space-y-1">
                     {detailRow.issues_assigned_today.split('\n').filter(Boolean).map((line, i) => (
                       <p key={i} className="text-[#a08060] flex items-start gap-1.5">
-                        <span className="text-[#c8843a] mt-0.5 shrink-0">→</span>{line}
+                        <span className="text-[#c8843a] shrink-0">→</span>{line}
                       </p>
                     ))}
                   </div>
                 </div>
               )}
-
               {detailRow.new_issues_raised_today && (
                 <div className="border-t border-[#2e2016] pt-3">
                   <p className="text-[#6b5a47] mb-1.5 font-medium flex items-center gap-1">
@@ -691,7 +637,6 @@ export default function HuddlePage() {
                   <p className="text-[#a08060] whitespace-pre-wrap">{detailRow.new_issues_raised_today}</p>
                 </div>
               )}
-
               {detailRow.notes_summary && (
                 <div className="border-t border-[#2e2016] pt-3">
                   <p className="text-[#6b5a47] mb-1.5 font-medium">Notes / Summary</p>
