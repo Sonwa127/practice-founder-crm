@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgUser } from '@/lib/useOrgUser'
 import RoleGuard from '@/components/RoleGuard'
+import RecordComments from '@/components/RecordComments'   // ← ADDED
 import {
   Search, RefreshCw, Loader2, ChevronDown, ChevronUp, ChevronsUpDown,
   Layers, GitBranch, ListChecks, BookOpen, UserCheck,
@@ -18,6 +19,7 @@ const TABS = [
   { key: 'processes',      label: 'Processes',       icon: <ListChecks size={13} /> },
   { key: 'sops',           label: 'SOPs',            icon: <BookOpen size={13} /> },
   { key: 'roles',          label: 'Roles',           icon: <UserCheck size={13} /> },
+  { key: 'resources',      label: 'Resources',       icon: <Star size={13} /> },
   { key: 'employees',      label: 'Employees',       icon: <Users size={13} /> },
   { key: 'services',       label: 'Services',        icon: <Stethoscope size={13} /> },
   { key: 'membership',     label: 'Membership',      icon: <Star size={13} /> },
@@ -57,7 +59,7 @@ function Cell({ val }: { val: unknown }) {
   return <span className="text-[#a08060]">{str}</span>
 }
 
-// ─── Column definitions (what shows in the table) ─────────────────────────────
+// ─── Column definitions ───────────────────────────────────────────────────────
 const COLUMNS: Record<TabKey, { key: string; label: string; w?: string }[]> = {
   core_functions: [
     { key: 'core_function_name', label: 'Core Function Name', w: 'min-w-[200px]' },
@@ -76,11 +78,11 @@ const COLUMNS: Record<TabKey, { key: string; label: string; w?: string }[]> = {
     { key: 'process_detail', label: 'Process Detail', w: 'min-w-[260px]' },
   ],
   sops: [
-    { key: 'sop_name',             label: 'SOP Name',  w: 'min-w-[200px]' },
-    { key: 'status',               label: 'Status',    w: 'min-w-[120px]' },
-    { key: 'purpose',              label: 'Purpose',   w: 'min-w-[240px]' },
-    { key: 'resources_needed',     label: 'Resources Needed', w: 'min-w-[180px]' },
-    { key: 'input',                label: 'Input / Trigger',  w: 'min-w-[160px]' },
+    { key: 'sop_name',             label: 'SOP Name',         w: 'min-w-[200px]' },
+    { key: 'status',               label: 'Status',            w: 'min-w-[120px]' },
+    { key: 'purpose',              label: 'Purpose',           w: 'min-w-[240px]' },
+    { key: 'resources_needed',     label: 'Resources Needed',  w: 'min-w-[180px]' },
+    { key: 'input',                label: 'Input / Trigger',   w: 'min-w-[160px]' },
     { key: 'how_we_know_complete', label: 'How We Know Complete', w: 'min-w-[180px]' },
   ],
   roles: [
@@ -88,27 +90,33 @@ const COLUMNS: Record<TabKey, { key: string; label: string; w?: string }[]> = {
     { key: 'description', label: 'Description', w: 'min-w-[260px]' },
     { key: 'status',      label: 'Status',      w: 'min-w-[140px]' },
   ],
+  resources: [
+    { key: 'resource_name', label: 'Resource Name', w: 'min-w-[180px]' },
+    { key: 'category',      label: 'Category',       w: 'min-w-[140px]' },
+    { key: 'description',   label: 'Description',    w: 'min-w-[260px]' },
+    { key: 'link',          label: 'Link / URL',      w: 'min-w-[200px]' },
+  ],
   employees: [
     { key: 'name',         label: 'Name',         w: 'min-w-[160px]' },
     { key: 'email',        label: 'Email',        w: 'min-w-[200px]' },
     { key: 'phone_number', label: 'Phone Number', w: 'min-w-[140px]' },
   ],
   services: [
-    { key: 'service_name', label: 'Service Name',    w: 'min-w-[180px]' },
-    { key: 'status',       label: 'Status',           w: 'min-w-[130px]' },
-    { key: 'category',     label: 'Category',         w: 'min-w-[150px]' },
-    { key: 'primary_type', label: 'Primary Type',     w: 'min-w-[120px]' },
-    { key: 'duration',     label: 'Duration (min)',   w: 'min-w-[110px]' },
+    { key: 'service_name', label: 'Service Name',   w: 'min-w-[180px]' },
+    { key: 'status',       label: 'Status',          w: 'min-w-[130px]' },
+    { key: 'category',     label: 'Category',        w: 'min-w-[150px]' },
+    { key: 'primary_type', label: 'Primary Type',    w: 'min-w-[120px]' },
+    { key: 'duration',     label: 'Duration (min)',  w: 'min-w-[110px]' },
   ],
   membership: [
-    { key: 'plan_name',           label: 'Plan Name',          w: 'min-w-[160px]' },
-    { key: 'monthly_price',       label: 'Monthly Price',      w: 'min-w-[120px]' },
-    { key: 'visits_included',     label: 'Visits Included',    w: 'min-w-[100px]' },
-    { key: 'iv_included',         label: 'IV Included',        w: 'min-w-[90px]' },
-    { key: 'shots_included',      label: 'Shots Included',     w: 'min-w-[100px]' },
-    { key: 'labs_included',       label: 'Labs Included',      w: 'min-w-[160px]' },
-    { key: 'supplement_discount', label: 'Supplement Discount',w: 'min-w-[150px]' },
-    { key: 'description',         label: 'Description',        w: 'min-w-[240px]' },
+    { key: 'plan_name',           label: 'Plan Name',           w: 'min-w-[160px]' },
+    { key: 'monthly_price',       label: 'Monthly Price',       w: 'min-w-[120px]' },
+    { key: 'visits_included',     label: 'Visits Included',     w: 'min-w-[100px]' },
+    { key: 'iv_included',         label: 'IV Included',         w: 'min-w-[90px]' },
+    { key: 'shots_included',      label: 'Shots Included',      w: 'min-w-[100px]' },
+    { key: 'labs_included',       label: 'Labs Included',       w: 'min-w-[160px]' },
+    { key: 'supplement_discount', label: 'Supplement Discount', w: 'min-w-[150px]' },
+    { key: 'description',         label: 'Description',         w: 'min-w-[240px]' },
   ],
 }
 
@@ -118,6 +126,7 @@ const TABLE_NAMES: Record<TabKey, string> = {
   processes:      'processes',
   sops:           'sops',
   roles:          'roles',
+  resources:      'resources',
   employees:      'employees',
   services:       'services',
   membership:     'membership',
@@ -129,6 +138,7 @@ const NAME_KEY: Record<TabKey, string> = {
   processes:      'process_name',
   sops:           'sop_name',
   roles:          'role_name',
+  resources:      'resource_name',
   employees:      'name',
   services:       'service_name',
   membership:     'plan_name',
@@ -189,23 +199,29 @@ const FORM_FIELDS: Record<TabKey, FieldDef[]> = {
     { key: 'description',        label: 'Description',     type: 'textarea', rows: 4, placeholder: 'What this role does and is responsible for…' },
     { key: 'linked_employee_id', label: 'Linked Employee', type: 'relation', relationTable: 'employees', relationLabel: 'name' },
   ],
+  resources: [
+    { key: 'resource_name', label: 'Resource Name', type: 'text',     required: true, placeholder: 'e.g. OPM Billing Portal' },
+    { key: 'category',      label: 'Category',       type: 'select',   options: ['', 'Software', 'Tool', 'Document', 'Template', 'Login / Credential', 'Physical', 'Other'] },
+    { key: 'description',   label: 'Description',    type: 'textarea', rows: 3, placeholder: 'What is this resource and how is it used?' },
+    { key: 'link',          label: 'Link / URL',      type: 'text',     placeholder: 'https://…' },
+  ],
   employees: [
-    { key: 'name',           label: 'Name',         type: 'text',  required: true, placeholder: 'e.g. Michael Johnson' },
-    { key: 'email',          label: 'Email',         type: 'email', placeholder: 'michael@practice.com' },
-    { key: 'phone_number',   label: 'Phone Number',  type: 'tel',   placeholder: '+1 555 000 0000' },
+    { key: 'name',           label: 'Name',         type: 'text',     required: true, placeholder: 'e.g. Michael Johnson' },
+    { key: 'email',          label: 'Email',         type: 'email',    placeholder: 'michael@practice.com' },
+    { key: 'phone_number',   label: 'Phone Number',  type: 'tel',      placeholder: '+1 555 000 0000' },
     { key: 'linked_role_id', label: 'Linked Role',   type: 'relation', relationTable: 'roles', relationLabel: 'role_name' },
   ],
   services: [
-    { key: 'service_name',         label: 'Service Name',    type: 'text',     required: true, placeholder: 'e.g. Annual Wellness Visit' },
-    { key: 'status',               label: 'Status',           type: 'select',   options: ['Currently In Use', 'Paused', 'Not In Use'] },
-    { key: 'category',             label: 'Category',         type: 'select',   options: ['', 'Preventative', 'Problem-Based', 'Wellness/Optimization', 'Procedure', 'Non-Revenue'] },
-    { key: 'primary_type',         label: 'Primary Type',     type: 'select',   options: ['Insurance', 'Cash'] },
-    { key: 'duration',             label: 'Duration (minutes)', type: 'number', placeholder: '30' },
-    { key: 'linked_performed_by',  label: 'Performed By',     type: 'relation', relationTable: 'employees', relationLabel: 'name' },
-    { key: 'linked_membership_id', label: 'Linked Membership',type: 'relation', relationTable: 'membership', relationLabel: 'plan_name' },
+    { key: 'service_name',         label: 'Service Name',      type: 'text',     required: true, placeholder: 'e.g. Annual Wellness Visit' },
+    { key: 'status',               label: 'Status',             type: 'select',   options: ['Currently In Use', 'Paused', 'Not In Use'] },
+    { key: 'category',             label: 'Category',           type: 'select',   options: ['', 'Preventative', 'Problem-Based', 'Wellness/Optimization', 'Procedure', 'Non-Revenue'] },
+    { key: 'primary_type',         label: 'Primary Type',       type: 'select',   options: ['Insurance', 'Cash'] },
+    { key: 'duration',             label: 'Duration (minutes)', type: 'number',   placeholder: '30' },
+    { key: 'linked_performed_by',  label: 'Performed By',       type: 'relation', relationTable: 'employees', relationLabel: 'name' },
+    { key: 'linked_membership_id', label: 'Linked Membership',  type: 'relation', relationTable: 'membership', relationLabel: 'plan_name' },
   ],
   membership: [
-    { key: 'plan_name',           label: 'Plan Name',           type: 'text',    required: true, placeholder: 'e.g. Wellness Gold' },
+    { key: 'plan_name',           label: 'Plan Name',           type: 'text',     required: true, placeholder: 'e.g. Wellness Gold' },
     { key: 'description',         label: 'Description',          type: 'textarea', placeholder: 'Description of what this plan includes…' },
     { key: 'monthly_price',       label: 'Monthly Price ($)',    type: 'number',   placeholder: '199.00' },
     { key: 'visits_included',     label: 'Visits Included',      type: 'number',   placeholder: '4' },
@@ -226,27 +242,23 @@ function CrudModal({ tab, mode, initial, orgId, onClose, onSaved }: {
   tab: TabKey; mode: 'create' | 'edit'; initial: Row
   orgId: string; onClose: () => void; onSaved: () => void
 }) {
-  const supabase = createClient()
-  const fields = FORM_FIELDS[tab]
-  const nameKey = NAME_KEY[tab]
+  const supabase  = createClient()
+  const fields    = FORM_FIELDS[tab]
+  const nameKey   = NAME_KEY[tab]
   const tableName = TABLE_NAMES[tab]
 
   const [relOptions, setRelOptions] = useState<Record<string, { id: string; label: string }[]>>({})
-
   const [form, setForm] = useState<Row>(() => {
     const seed: Row = { ...initial }
     fields.forEach(f => {
-      if (f.type === 'select' && !seed[f.key]) {
+      if (f.type === 'select' && !seed[f.key])
         seed[f.key] = f.options.find(o => o !== '') ?? f.options[0]
-      }
     })
     return seed
   })
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError]   = useState<string | null>(null)
 
-  // ── FIX: cast query result as Row[] so .map() sees Record<string,unknown>
-  //         instead of Supabase's ParserError (triggered by template-literal selects)
   useEffect(() => {
     const relFields = fields.filter((f): f is RelationField => f.type === 'relation')
     if (!relFields.length) return
@@ -257,13 +269,11 @@ function CrudModal({ tab, mode, initial, orgId, onClose, onSaved }: {
           .select(`id, ${f.relationLabel}`)
           .eq('org_id', orgId)
           .order(f.relationLabel, { ascending: true })
-        // Cast: template-literal select strings defeat Supabase's type inference
-        // and produce ParserError<...> — cast to Row[] to keep .map() happy.
         const rows = (data ?? []) as unknown as Row[]
         return {
           key: f.key,
           options: rows.map(r => ({
-            id: String(r.id ?? ''),
+            id:    String(r.id ?? ''),
             label: String(r[f.relationLabel] ?? ''),
           })),
         }
@@ -308,25 +318,22 @@ function CrudModal({ tab, mode, initial, orgId, onClose, onSaved }: {
   }
 
   const tabLabel = TABS.find(t => t.key === tab)?.label ?? tab
-  const title = mode === 'create' ? `New ${tabLabel.replace(/s$/, '')}` : `Edit ${tabLabel.replace(/s$/, '')}`
+  const title    = mode === 'create' ? `New ${tabLabel.replace(/s$/, '')}` : `Edit ${tabLabel.replace(/s$/, '')}`
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end bg-black/60"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="h-full w-[420px] bg-[#1e1409] border-l border-[#2e2016] flex flex-col shadow-2xl">
-
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#2e2016] sticky top-0 bg-[#1e1409] z-10">
           <h3 className="text-sm font-semibold text-[#c4b49a]">{title}</h3>
           <button onClick={onClose} className="text-[#6b5a47] hover:text-[#c4b49a] transition-colors"><X size={15} /></button>
         </div>
-
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {fields.map(field => (
             <div key={field.key}>
               <label className="block text-[10px] font-medium text-[#6b5a47] uppercase tracking-wider mb-1.5">
                 {field.label}{field.required && <span className="text-[#c8843a] ml-0.5">*</span>}
               </label>
-
               {field.type === 'textarea' && (
                 <textarea className={inputCls + ' resize-none'} rows={field.rows ?? 3}
                   placeholder={field.placeholder} value={String(form[field.key] ?? '')}
@@ -356,12 +363,10 @@ function CrudModal({ tab, mode, initial, orgId, onClose, onSaved }: {
               )}
             </div>
           ))}
-
           {error && (
             <p className="text-[#f87171] text-xs bg-[#2e1010] border border-[#f87171]/20 rounded px-3 py-2">{error}</p>
           )}
         </div>
-
         <div className="px-4 py-3 border-t border-[#2e2016] flex items-center justify-end gap-2 shrink-0">
           <button onClick={onClose} disabled={saving}
             className="px-3 py-1.5 text-xs text-[#6b5a47] hover:text-[#c4b49a] border border-[#2e2016]
@@ -415,20 +420,21 @@ function DeleteDialog({ name, onConfirm, onCancel, loading }: {
 }
 
 // ─── BizTable ─────────────────────────────────────────────────────────────────
+//   orgId is received as a prop — already available, passed straight to RecordComments.
 function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
-  const supabase = createClient()
-  const qc = useQueryClient()
-  const cols = COLUMNS[tab]
+  const supabase  = createClient()
+  const qc        = useQueryClient()
+  const cols      = COLUMNS[tab]
   const tableName = TABLE_NAMES[tab]
-  const nameKey = NAME_KEY[tab]
+  const nameKey   = NAME_KEY[tab]
 
-  const [search, setSearch] = useState('')
-  const [sortKey, setSortKey] = useState(cols[0].key)
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
-  const [detailRow, setDetailRow] = useState<Row | null>(null)
-  const [modal, setModal] = useState<{ open: boolean; mode: 'create' | 'edit'; row: Row }>({ open: false, mode: 'create', row: {} })
+  const [search,       setSearch]       = useState('')
+  const [sortKey,      setSortKey]      = useState(cols[0].key)
+  const [sortDir,      setSortDir]      = useState<'asc' | 'desc'>('asc')
+  const [detailRow,    setDetailRow]    = useState<Row | null>(null)
+  const [modal,        setModal]        = useState<{ open: boolean; mode: 'create' | 'edit'; row: Row }>({ open: false, mode: 'create', row: {} })
   const [deleteTarget, setDeleteTarget] = useState<Row | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  const [deleting,     setDeleting]     = useState(false)
 
   const queryKey = ['biz', tab, orgId]
 
@@ -473,7 +479,7 @@ function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
   }
 
   const openCreate = () => setModal({ open: true, mode: 'create', row: {} })
-  const openEdit = (row: Row, e: React.MouseEvent) => { e.stopPropagation(); setModal({ open: true, mode: 'edit', row }) }
+  const openEdit   = (row: Row, e: React.MouseEvent) => { e.stopPropagation(); setModal({ open: true, mode: 'edit', row }) }
   const openDelete = (row: Row, e: React.MouseEvent) => { e.stopPropagation(); setDeleteTarget(row) }
 
   const tabLabel = TABS.find(t => t.key === tab)?.label ?? tab
@@ -572,7 +578,7 @@ function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
           </table>
         </div>
 
-        {/* Detail panel */}
+        {/* ── Detail panel ── */}
         {detailRow && (
           <div className="w-[340px] border-l border-[#2e2016] bg-[#1e1409] flex flex-col overflow-y-auto shrink-0">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#2e2016] sticky top-0 bg-[#1e1409] z-10">
@@ -590,6 +596,8 @@ function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
                 </button>
               </div>
             </div>
+
+            {/* Fields */}
             <div className="px-4 py-3 space-y-3 text-xs">
               {Object.entries(detailRow)
                 .filter(([k]) => !['id', 'org_id', 'created_at', 'updated_at'].includes(k))
@@ -604,6 +612,16 @@ function BizTable({ tab, orgId }: { tab: TabKey; orgId: string }) {
                   </div>
                 ))}
             </div>
+
+            {/* ── ADDED: Comments section ── */}
+            <div className="border-t border-[#2e2016] px-4 py-3">
+              <RecordComments
+                recordId={String(detailRow.id ?? '')}
+                tableName={tableName}
+                orgId={orgId}
+              />
+            </div>
+
             <div className="px-4 py-3 border-t border-[#2e2016] mt-auto space-y-2">
               <button onClick={e => openEdit(detailRow, e)}
                 className="w-full py-1.5 text-xs text-[#c8843a] border border-[#c8843a]/30
