@@ -977,8 +977,8 @@ function NewTrackerForm({ onSave, onCancel }: { onSave: (row: DailyTrackerRow) =
   return (
     <div className="flex flex-col max-h-[80vh]">
       <div className="flex border-b border-[#2e2016] px-5">
-        {([{ key: 'receptionist', label: 'Receptionist KPIs', icon: User }, { key: 'dr_evans', label: 'Dr. Evans KPIs', icon: Stethoscope }] as { key: 'receptionist' | 'dr_evans'; label: string; icon: React.ElementType }[]).map(tab => (
-          <button key={tab.key} onClick={() => { setActiveTab(tab.key); set('submitted_by', tab.key === 'dr_evans' ? 'Dr. Evans' : 'Receptionist'); }}
+        {([{ key: 'receptionist', label: 'Receptionist KPIs', icon: User }, { key: 'dr_evans', label: 'Physician KPIs', icon: Stethoscope }] as { key: 'receptionist' | 'dr_evans'; label: string; icon: React.ElementType }[]).map(tab => (
+          <button key={tab.key} onClick={() => { setActiveTab(tab.key); set('submitted_by', tab.key === 'dr_evans' ? 'Physician' : 'Receptionist'); }}
             className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition ${activeTab === tab.key ? 'border-[#c8843a] text-[#e8a05a]' : 'border-transparent text-[#6b5a47] hover:text-[#a08060]'}`}>
             <tab.icon className="w-3.5 h-3.5" />{tab.label}
           </button>
