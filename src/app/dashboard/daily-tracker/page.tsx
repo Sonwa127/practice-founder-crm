@@ -327,10 +327,10 @@ export default function DailyTrackerPage() {
   const [showCreate,      setShowCreate]      = useState(false);
   const [savedViews,      setSavedViews]      = useState<SavedView[]>([]);
   const [viewName,        setViewName]        = useState('');
+  const lockedView = searchParams.get('view'); // 'receptionist' | 'physician' | null
   const [submitterFilter, setSubmitterFilter] = useState<SubmitterType>(() => {
-    const view = searchParams.get('view');
-    if (view === 'physician') return 'dr_evans';
-    if (view === 'receptionist') return 'receptionist';
+    if (lockedView === 'physician') return 'dr_evans';
+    if (lockedView === 'receptionist') return 'receptionist';
     return 'all';
   });
 
@@ -562,23 +562,35 @@ export default function DailyTrackerPage() {
 
       <div className="px-6 pt-4 pb-2 flex-shrink-0">
         <p className="text-xs text-[#6b5a47]">Financial Tracker › Daily Tracker</p>
-        <h1 className="text-2xl font-bold text-white mt-0.5">Daily Tracker</h1>
+        <h1 className="text-2xl font-bold text-white mt-0.5">
+          {lockedView === 'physician' ? 'Daily Physician Tracker' : lockedView === 'receptionist' ? 'Daily Receptionist Tracker' : 'Daily Tracker'}
+        </h1>
       </div>
 
-      {/* Submitter tabs */}
-      <div className="flex-shrink-0 px-4 pb-2 flex items-center gap-1">
-        {([
-          { key: 'all',          label: 'All Records',  icon: Layers },
-          { key: 'receptionist', label: 'Receptionist', icon: User },
-          { key: 'dr_evans',     label: 'Physician',    icon: Stethoscope },
-        ] as { key: SubmitterType; label: string; icon: React.ElementType }[]).map(tab => (
-          <button key={tab.key} onClick={() => { setSubmitterFilter(tab.key); setPage(1); }}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm border font-medium transition
-              ${submitterFilter === tab.key ? 'bg-[#c8843a]/15 border-[#c8843a]/60 text-[#e8a05a]' : 'bg-[#221710] border-[#3a2a1a] text-[#a08060] hover:border-[#c8843a]/60'}`}>
-            <tab.icon className="w-3.5 h-3.5" />{tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Submitter tabs — hidden when locked to a specific view */}
+      {!lockedView ? (
+        <div className="flex-shrink-0 px-4 pb-2 flex items-center gap-1">
+          {([
+            { key: 'all',          label: 'All Records',  icon: Layers },
+            { key: 'receptionist', label: 'Receptionist', icon: User },
+            { key: 'dr_evans',     label: 'Physician',    icon: Stethoscope },
+          ] as { key: SubmitterType; label: string; icon: React.ElementType }[]).map(tab => (
+            <button key={tab.key} onClick={() => { setSubmitterFilter(tab.key); setPage(1); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm border font-medium transition
+                ${submitterFilter === tab.key ? 'bg-[#c8843a]/15 border-[#c8843a]/60 text-[#e8a05a]' : 'bg-[#221710] border-[#3a2a1a] text-[#a08060] hover:border-[#c8843a]/60'}`}>
+              <tab.icon className="w-3.5 h-3.5" />{tab.label}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="flex-shrink-0 px-4 pb-2">
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm border font-medium
+            ${lockedView === 'physician' ? 'bg-[#1e3a5f]/40 border-[#2a4a6f] text-[#60a5fa]' : 'bg-[#5c3d1e]/40 border-[#7a5230] text-[#e8c07a]'}`}>
+            {lockedView === 'physician' ? <Stethoscope className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+            {lockedView === 'physician' ? 'Physician Records' : 'Receptionist Records'}
+          </span>
+        </div>
+      )}
 
       {/* TOOLBAR */}
       <div className="flex-shrink-0 px-4 py-2 border-b border-[#2e2016] bg-[#1a1410] z-30">
