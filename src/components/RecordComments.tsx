@@ -1,26 +1,11 @@
 'use client'
 
-// src/components/RecordComments.tsx
-// Real-time comment thread for any record.
-// Drop this inside any detail panel — pass the record id and table name.
-//
-// Usage:
-//   <RecordComments recordId={row.id} tableName="daily_billing_claims" orgId={orgId} />
-//
-// Requires the comments table in Supabase — see supabase-comments-rls.sql
-
-import { useState, useEffect, useRef } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
-import { useOrgUser } from '@/lib/useOrgUser'
-import { Send, MessageCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface Comment {
   id: string
-  record_id: string
-  table_name: string
-  org_id: string
-  author_employee_id: string
-  author_name: string
+  author_name: string | null
   body: string
   created_at: string
 }
@@ -28,194 +13,85 @@ interface Comment {
 interface RecordCommentsProps {
   recordId: string
   tableName: string
-  orgId: string
+  orgId: string | null  // accepts null — renders nothing if null
 }
 
 export default function RecordComments({ recordId, tableName, orgId }: RecordCommentsProps) {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-  const { employeeId, employeeName } = useOrgUser()
+  const [comments, setComments] = useState<Comment[]>([])
+  const [body, setBody] = useState('')
+  const [saving, setSaving] = useState(false)
+  const supabase = createClient()
 
-  const [comments, setComments]   = useState<Comment[]>([])
-  const [body, setBody]           = useState('')
-  const [sending, setSending]     = useState(false)
-  const [loading, setLoading]     = useState(true)
-  const bottomRef                 = useRef<HTMLDivElement>(null)
-
-  // ── Initial fetch ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!recordId || !orgId) return
-
-    supabase
-      .from('comments')
-      .select('*')
+  async function load() {
+    if (!orgId) return
+    const { data } = await supabase
+      .from('record_comments')
+      .select('id, author_name, body, created_at')
       .eq('record_id', recordId)
       .eq('table_name', tableName)
-      .eq('org_id', orgId)
+      .eq('practice_id', orgId)
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
-        setComments(data ?? [])
-        setLoading(false)
-      })
-  }, [recordId, tableName, orgId]) // eslint-disable-line react-hooks/exhaustive-deps
+    setComments((data as Comment[]) ?? [])
+  }
 
-  // ── Real-time subscription ───────────────────────────────────────────────
-  useEffect(() => {
-    if (!recordId || !orgId) return
+  useEffect(() => { load() }, [recordId, orgId])
 
-    const channel = supabase
-      .channel(`comments:${tableName}:${recordId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'comments',
-          filter: `record_id=eq.${recordId}`,
-        },
-        (payload) => {
-          const newComment = payload.new as Comment
-          setComments(prev => {
-            // Avoid duplicates (optimistic insert might already be there)
-            if (prev.find(c => c.id === newComment.id)) return prev
-            return [...prev, newComment]
-          })
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [recordId, tableName, orgId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Scroll to bottom when new comment arrives ────────────────────────────
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [comments])
-
-  // ── Send comment ─────────────────────────────────────────────────────────
-  const handleSend = async () => {
-    const trimmed = body.trim()
-    if (!trimmed || !employeeId || !orgId) return
-
-    setSending(true)
-
-    // Optimistic insert
-    const optimistic: Comment = {
-      id:                  `opt-${Date.now()}`,
-      record_id:           recordId,
-      table_name:          tableName,
-      org_id:              orgId,
-      author_employee_id:  employeeId,
-      author_name:         employeeName ?? 'You',
-      body:                trimmed,
-      created_at:          new Date().toISOString(),
-    }
-    setComments(prev => [...prev, optimistic])
-    setBody('')
-
-    const { error } = await supabase.from('comments').insert({
-      record_id:          recordId,
-      table_name:         tableName,
-      org_id:             orgId,
-      author_employee_id: employeeId,
-      author_name:        employeeName ?? 'Staff',
-      body:               trimmed,
+  async function submit() {
+    if (!body.trim() || !orgId) return
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('record_comments').insert({
+      record_id: recordId,
+      table_name: tableName,
+      practice_id: orgId,
+      author_id: user?.id ?? null,
+      body: body.trim(),
     })
-
-    if (error) {
-      console.error('Comment send failed:', error.message)
-      // Roll back optimistic insert
-      setComments(prev => prev.filter(c => c.id !== optimistic.id))
-      setBody(trimmed)
-    }
-
-    setSending(false)
+    setBody('')
+    setSaving(false)
+    load()
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }
+  // Don't render at all if no orgId
+  if (!orgId) return null
 
-  const fmtTime = (iso: string) => {
-    const d = new Date(iso)
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
-      ' · ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-  }
-
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col border-t border-[#2e2016] mt-4">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-5 py-3">
-        <MessageCircle className="w-4 h-4 text-[#c8843a]" />
-        <span className="text-sm font-semibold text-[#e8c07a]">
-          Comments {comments.length > 0 && <span className="text-[#6b5a47] font-normal">({comments.length})</span>}
-        </span>
-      </div>
+    <div className="border-t border-[#2e2016] pt-3 mt-3 space-y-3">
+      <div className="text-xs font-medium text-[#c4b49a]/50 uppercase tracking-wider">Comments</div>
 
-      {/* Comment list */}
-      <div className="flex-1 overflow-y-auto px-5 space-y-3 max-h-64 min-h-[80px]">
-        {loading && (
-          <p className="text-xs text-[#6b5a47] italic py-4 text-center">Loading comments…</p>
-        )}
-        {!loading && comments.length === 0 && (
-          <p className="text-xs text-[#6b5a47] italic py-4 text-center">
-            No comments yet. Be the first to leave one.
-          </p>
-        )}
-        {comments.map(c => {
-          const isMe = c.author_employee_id === employeeId
-          return (
-            <div key={c.id} className={`flex gap-2.5 ${isMe ? 'flex-row-reverse' : ''}`}>
-              {/* Avatar */}
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0
-                ${isMe ? 'bg-[#c8843a] text-white' : 'bg-[#2e1f0f] text-[#c8843a] border border-[#3a2a1a]'}`}>
-                {(c.author_name ?? '?')[0].toUpperCase()}
-              </div>
+      {comments.length === 0 && (
+        <div className="text-xs text-[#c4b49a]/30 italic">No comments yet.</div>
+      )}
 
-              {/* Bubble */}
-              <div className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
-                <div className={`flex items-center gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
-                  <span className="text-[10px] font-semibold text-[#a08060]">{c.author_name}</span>
-                  <span className="text-[10px] text-[#4a3828]">{fmtTime(c.created_at)}</span>
-                </div>
-                <div className={`px-3 py-2 rounded-xl text-sm leading-relaxed
-                  ${isMe
-                    ? 'bg-[#c8843a] text-white rounded-tr-sm'
-                    : 'bg-[#261c12] border border-[#3a2a1a] text-[#c4b49a] rounded-tl-sm'
-                  }`}>
-                  {c.body}
-                </div>
-              </div>
+      <div className="space-y-2">
+        {comments.map(c => (
+          <div key={c.id} className="bg-[#2e2016]/30 rounded-lg px-3 py-2">
+            <div className="flex items-center justify-between mb-0.5">
+              <span className="text-xs font-medium text-[#c8843a]">{c.author_name ?? 'Unknown'}</span>
+              <span className="text-[10px] text-[#c4b49a]/40">
+                {new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
             </div>
-          )
-        })}
-        <div ref={bottomRef} />
+            <div className="text-sm text-[#c4b49a]">{c.body}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Input */}
-      <div className="px-5 py-3 border-t border-[#2e2016] flex gap-2 items-end">
-        <textarea
+      <div className="flex gap-2">
+        <input
+          type="text"
           value={body}
           onChange={e => setBody(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Write a comment… (Enter to send)"
-          rows={2}
-          className="flex-1 px-3 py-2 rounded-lg bg-[#261c12] border border-[#3a2a1a] text-sm text-[#c4b49a] placeholder-[#5a4535] focus:outline-none focus:border-[#c8843a] transition resize-none"
+          onKeyDown={e => e.key === 'Enter' && submit()}
+          placeholder="Add a comment…"
+          className="flex-1 bg-[#1a1410] border border-[#2e2016] rounded-lg px-3 py-1.5 text-sm text-white placeholder-[#c4b49a]/30 focus:outline-none focus:border-[#c8843a]"
         />
         <button
-          onClick={handleSend}
-          disabled={!body.trim() || sending}
-          className="p-2.5 rounded-lg bg-[#c8843a] hover:bg-[#d9944a] text-white disabled:opacity-40 transition flex-shrink-0"
+          onClick={submit}
+          disabled={saving || !body.trim()}
+          className="text-xs bg-[#c8843a]/20 text-[#c8843a] border border-[#c8843a]/30 rounded-lg px-3 py-1.5 hover:bg-[#c8843a]/30 disabled:opacity-40 transition-colors"
         >
-          <Send className="w-4 h-4" />
+          {saving ? '…' : 'Post'}
         </button>
       </div>
     </div>

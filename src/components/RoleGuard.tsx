@@ -1,64 +1,69 @@
 'use client'
 
-// src/components/RoleGuard.tsx
-// Drop this on any page that needs role restriction.
-// admin role always bypasses every guard.
-//
-// Usage:
-//   export default function DashboardPage() {
-//     return (
-//       <RoleGuard allow={['admin']}>
-//         <ActualPageContent />
-//       </RoleGuard>
-//     )
-//   }
-
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { useOrgUser } from '@/lib/useOrgUser'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
-// All possible roles in the system
-export type PracticeRole =
-  | 'admin'
-  | 'member'
+// All valid role strings — new 4-role system + old 'admin'/'member' as aliases
+type Role =
+  | 'pf_admin'
+  | 'pf_team'
+  | 'client_owner'
+  | 'client_staff'
+  | 'admin'    // legacy alias
+  | 'member'   // legacy alias
 
 interface RoleGuardProps {
-  /** Roles that ARE allowed to see this page */
-  allow: PracticeRole[]
-  /** Where to send unauthorized users. Defaults to /dashboard/tasks */
-  redirectTo?: string
+  allow: Role[]
   children: React.ReactNode
+  fallback?: React.ReactNode
 }
 
-export default function RoleGuard({
-  allow,
-  redirectTo = '/dashboard/tasks',
-  children,
-}: RoleGuardProps) {
-  const router = useRouter()
-  const { role, isLoading } = useOrgUser()
+function normalise(role: string | null): string {
+  if (role === 'admin') return 'pf_admin'
+  if (role === 'member') return 'client_staff'
+  return role ?? ''
+}
 
-  const isAllowed = role === 'admin' || allow.includes(role as PracticeRole)
+export default function RoleGuard({ allow, children, fallback }: RoleGuardProps) {
+  const { role, isLoading } = useOrgUser()
+  const router = useRouter()
+
+  const normalisedAllow = allow.flatMap(r => {
+    if (r === 'admin') return ['pf_admin', 'pf_team', 'client_owner', 'admin']
+    if (r === 'member') return ['client_staff', 'member']
+    return [r]
+  })
+
+  const normalisedRole = normalise(role)
+  const allowed = !isLoading && role !== null && normalisedAllow.includes(normalisedRole)
 
   useEffect(() => {
-    if (isLoading) return
-    if (!role || !isAllowed) {
-      router.replace(redirectTo)
+    if (!isLoading && role !== null && !normalisedAllow.includes(normalisedRole)) {
+      router.replace('/dashboard/tasks')
     }
-  }, [role, isLoading, isAllowed, redirectTo, router])
+  }, [isLoading, role])
 
-  // Still loading — show spinner to prevent flash
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full bg-[#1a1410]">
-        <div className="w-5 h-5 rounded-full border-2 border-[#c8843a] border-t-transparent animate-spin" />
+      <div className="min-h-screen bg-[#1a1410] flex items-center justify-center">
+        <div className="text-[#c8843a] text-sm animate-pulse">Loading…</div>
       </div>
     )
   }
 
-  // Role not allowed — show nothing while redirect happens
-  if (!role || !isAllowed) {
-    return null
+  if (!allowed) {
+    return fallback ? (
+      <>{fallback}</>
+    ) : (
+      <div className="min-h-screen bg-[#1a1410] flex flex-col items-center justify-center gap-3 text-center p-8">
+        <div className="text-3xl">🔒</div>
+        <h2 className="text-white text-lg font-semibold">Access Restricted</h2>
+        <p className="text-[#c4b49a] text-sm max-w-xs">
+          You don't have permission to view this section.
+        </p>
+      </div>
+    )
   }
 
   return <>{children}</>

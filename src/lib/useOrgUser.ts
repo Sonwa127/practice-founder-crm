@@ -1,141 +1,95 @@
-'use client'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
-import { useEffect, useState, useRef } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+// Export so pages can import the type
+export type Role = 'pf_admin' | 'pf_team' | 'client_owner' | 'client_staff'
 
-export interface OrgUser {
-  userId: string
-  orgId: string
+interface OrgUser {
+  userId: string | null
+  orgId: string | null
   employeeId: string | null
   employeeName: string | null
-  email: string | null
-  role: string | null
-  isLoading: boolean
-  isAdmin: boolean
-  isMember: boolean
+  role: Role | null
+  isPfAdmin: boolean
+  isPfTeam: boolean
+  isClientOwner: boolean
+  isClientStaff: boolean
   canViewAll: boolean
-}
-
-const supabase = createBrowserClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
-// Module-level cache — survives re-renders, cleared on sign out
-let cachedUser: OrgUser | null = null
-
-const DEFAULT_STATE: OrgUser = {
-  userId: '', orgId: '', employeeId: null, employeeName: null,
-  email: null, role: null, isLoading: true,
-  isAdmin: false, isMember: false, canViewAll: false,
+  isLoading: boolean
 }
 
 export function useOrgUser(): OrgUser {
-  const [state, setState] = useState<OrgUser>(
-    cachedUser ? { ...cachedUser, isLoading: false } : DEFAULT_STATE
-  )
-  const loadingRef = useRef(false)  // prevents concurrent loads
-  const lastUserIdRef = useRef<string | null>(null)
+  const supabase = createClient()
+  const [state, setState] = useState<OrgUser>({
+    userId: null,
+    orgId: null,
+    employeeId: null,
+    employeeName: null,
+    role: null,
+    isPfAdmin: false,
+    isPfTeam: false,
+    isClientOwner: false,
+    isClientStaff: false,
+    canViewAll: false,
+    isLoading: true,
+  })
 
   useEffect(() => {
-    const load = async (userId?: string) => {
-      // Skip if already loading or same user as last load
-      if (loadingRef.current) return
-      if (userId && userId === lastUserIdRef.current && cachedUser) {
-        setState({ ...cachedUser, isLoading: false })
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setState(s => ({ ...s, isLoading: false }))
         return
       }
 
-      loadingRef.current = true
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('practice_id, role')
+        .eq('id', user.id)
+        .single()
 
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-
-        if (!user) {
-          cachedUser = null
-          lastUserIdRef.current = null
-          setState({ ...DEFAULT_STATE, isLoading: false })
-          loadingRef.current = false
-          return
-        }
-
-        // Already loaded same user — use cache
-        if (user.id === lastUserIdRef.current && cachedUser) {
-          setState({ ...cachedUser, isLoading: false })
-          loadingRef.current = false
-          return
-        }
-
-        // Fetch role and employee in parallel
-        const [userResult, employeeResult] = await Promise.allSettled([
-          supabase.from('users').select('role').eq('id', user.id).single(),
-          supabase.from('employees').select('id, org_id').eq('linked_user', user.id).single(),
-        ])
-
-        const role = userResult.status === 'fulfilled'
-          ? (userResult.value.data?.role ?? null)
-          : null
-
-        let employee: { id: string; org_id: string } | null =
-          employeeResult.status === 'fulfilled' ? employeeResult.value.data : null
-
-        // Fallback: try email match if linked_user didn't find anything
-        if (!employee && user.email) {
-          const { data } = await supabase
-            .from('employees').select('id, org_id')
-            .eq('email', user.email).single()
-          employee = data ?? null
-        }
-
-        const isAdmin    = role === 'admin'
-        const isMember   = role === 'member'
-        const canViewAll = isAdmin
-
-        const next: OrgUser = {
-          userId:       user.id,
-          orgId:        employee?.org_id ?? '',
-          employeeId:   employee?.id ?? null,
-          employeeName: user.email ?? null,
-          email:        user.email ?? null,
-          role,
-          isLoading:    false,
-          isAdmin,
-          isMember,
-          canViewAll,
-        }
-
-        cachedUser = next
-        lastUserIdRef.current = user.id
-        setState(next)
-
-      } catch {
-        setState(s => ({ ...s, isLoading: false }))
-      } finally {
-        loadingRef.current = false
+      if (!profile) {
+        setState(s => ({ ...s, userId: user.id, isLoading: false }))
+        return
       }
+
+      // Map legacy role strings to new system
+      let role = profile.role as Role
+      if ((profile.role as string) === 'admin') role = 'pf_admin' as Role
+      if ((profile.role as string) === 'member') role = 'client_staff' as Role
+
+      let employeeId: string | null = null
+      let employeeName: string | null = null
+      if (profile.practice_id) {
+        const { data: emp } = await supabase
+          .from('employees')
+          .select('id, name')
+          .eq('practice_id', profile.practice_id)
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (emp) {
+          employeeId = emp.id
+          employeeName = emp.name
+        }
+      }
+
+      setState({
+        userId: user.id,
+        orgId: profile.practice_id ?? null,
+        employeeId,
+        employeeName,
+        role,
+        isPfAdmin: role === 'pf_admin',
+        isPfTeam: role === 'pf_admin' || role === 'pf_team',
+        isClientOwner: role === 'client_owner',
+        isClientStaff: role === 'client_staff',
+        canViewAll: role === 'pf_admin' || role === 'pf_team',
+        isLoading: false,
+      })
     }
 
-    // Initial load
     load()
-
-    // Only re-load on actual sign in/out — ignore token refreshes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') {
-        load(session?.user?.id)
-      }
-      if (event === 'SIGNED_OUT') {
-        cachedUser = null
-        lastUserIdRef.current = null
-        setState({ ...DEFAULT_STATE, isLoading: false })
-      }
-    })
-
-    return () => subscription.unsubscribe()
   }, [])
 
   return state
-}
-
-export function useSupabase() {
-  return supabase  // reuse the same instance instead of creating a new one
 }

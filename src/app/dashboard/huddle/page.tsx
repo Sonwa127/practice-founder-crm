@@ -647,7 +647,7 @@ export default function HuddlePage() {
 
             {orgId && (
               <div className="border-t border-[#2e2016] px-4 py-3">
-                <RecordComments recordId={detailRow.id} tableName="daily_huddle_log" orgId={orgId} />
+                <RecordComments recordId={detailRow.id} tableName="daily_huddle_log" orgId={orgId ?? null} />
               </div>
             )}
 
@@ -662,7 +662,7 @@ export default function HuddlePage() {
       </div>
 
       {showNewModal && orgId && (
-        <NewHuddleModal orgId={orgId} onClose={() => setShowNewModal(false)}
+        <NewHuddleModal orgId={orgId ?? null} onClose={() => setShowNewModal(false)}
           onCreated={() => queryClient.invalidateQueries({ queryKey: ['huddle', orgId] })} />
       )}
 

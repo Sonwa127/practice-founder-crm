@@ -1,156 +1,164 @@
-'use client';
+'use client'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useTheme } from '@/components/ThemeContext'
 import { useOrgUser } from '@/lib/useOrgUser'
-import {
-  LayoutDashboard, FileText, BarChart3, Activity,
-  CheckSquare, AlertTriangle, MessageSquare,
-  Map, Package, Sun, Moon, LogOut, ChevronDown, ChevronRight,
-} from 'lucide-react'
 import { useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
-import { useRouter } from 'next/navigation'
-import type { PracticeRole } from '@/components/RoleGuard'
 
 interface NavItem {
-  href: string
   label: string
-  icon: React.ElementType
-  visibleTo?: PracticeRole[]
+  href: string
+  roles: string[]
 }
+
 interface NavSection {
-  label: string | null
-  visibleTo?: PracticeRole[]
+  title: string
   items: NavItem[]
 }
 
-const ADMIN_ONLY: PracticeRole[] = ['admin']
-
 const NAV: NavSection[] = [
   {
-    label: null,
+    title: 'Overview',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, visibleTo: ADMIN_ONLY },
+      { label: 'KPI Dashboard', href: '/dashboard', roles: ['pf_admin', 'pf_team', 'client_owner'] },
     ],
   },
   {
-    label: 'FINANCIAL TRACKER',
+    title: 'Financial Tracker',
     items: [
-      { href: '/dashboard/billing',       label: 'Daily Billing & Claims',   icon: FileText,  visibleTo: ADMIN_ONLY },
-      { href: '/dashboard/financials',    label: 'Weekly Financial Reports', icon: BarChart3, visibleTo: ADMIN_ONLY },
-      { href: '/dashboard/daily-tracker', label: 'Daily Tracker',            icon: Activity },
+      { label: 'Weekly Financial Report', href: '/dashboard/financials', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Daily Receptionist Tracker', href: '/dashboard/daily-tracker/receptionist', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Daily Physician Tracker', href: '/dashboard/daily-tracker/physician', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Membership Tracker', href: '/dashboard/membership-tracker', roles: ['pf_admin', 'pf_team', 'client_owner'] },
     ],
   },
   {
-    label: 'TASK MANAGEMENT',
+    title: 'Task Management',
     items: [
-      { href: '/dashboard/tasks',  label: 'Tasks',               icon: CheckSquare   },
-      { href: '/dashboard/issues', label: 'Issues & Breakdowns', icon: AlertTriangle },
-      { href: '/dashboard/huddle', label: 'Daily Huddle Log',    icon: MessageSquare },
+      { label: 'Tasks', href: '/dashboard/tasks', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Deliverables', href: '/dashboard/deliverables', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
     ],
   },
   {
-    label: 'BUSINESS MAPPING',
-    visibleTo: ADMIN_ONLY,
+    title: 'Huddle + Issues',
     items: [
-      { href: '/dashboard/business-mapping', label: 'Business Mapping HQ', icon: Map     },
-      { href: '/dashboard/membership',       label: 'Membership Plans',    icon: Package },
+      { label: 'Daily Huddle Log', href: '/dashboard/huddle', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Issues & Breakdowns', href: '/dashboard/issues', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+    ],
+  },
+  {
+    title: 'Business HQ',
+    items: [
+      { label: 'Core Functions', href: '/dashboard/business-mapping/core-functions', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Systems', href: '/dashboard/business-mapping/systems', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Processes', href: '/dashboard/business-mapping/processes', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'SOPs', href: '/dashboard/business-mapping/sops', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Roles', href: '/dashboard/business-mapping/roles', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Employees', href: '/dashboard/business-mapping/employees', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Services', href: '/dashboard/business-mapping/services', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Membership Plans', href: '/dashboard/membership', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+    ],
+  },
+  {
+    title: 'Billing Activities',
+    items: [
+      { label: 'Daily Billing & Claims', href: '/dashboard/billing', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Charge Lag (Internal)', href: '/dashboard/billing/charge-lag', roles: ['pf_admin', 'pf_team'] },
+      { label: 'AR Report (Internal)', href: '/dashboard/billing/ar-report', roles: ['pf_admin', 'pf_team'] },
+      { label: 'Claims Summary (Internal)', href: '/dashboard/billing/claims-summary', roles: ['pf_admin', 'pf_team'] },
     ],
   },
 ]
 
 export default function Sidebar() {
-  const pathname             = usePathname()
-  const { dark, toggleDark } = useTheme()
-  const router               = useRouter()
-  const { role, employeeName, isLoading: authLoading } = useOrgUser()
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-  const toggleSection = (label: string) => setCollapsed(p => ({ ...p, [label]: !p[label] }))
+  const pathname = usePathname()
+  const { role, employeeName, isLoading } = useOrgUser()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const isActive = (href: string) =>
-    href === '/dashboard' ? pathname === href : pathname === href || pathname.startsWith(href + '/')
+    href === '/dashboard' ? pathname === href : pathname.startsWith(href)
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
+  const visibleSections = NAV.map(section => ({
+    ...section,
+    items: section.items.filter(item => !role || item.roles.includes(role)),
+  })).filter(s => s.items.length > 0)
 
-  const canSee = (visibleTo?: PracticeRole[]) => {
-    if (!visibleTo) return true
-    return visibleTo.includes(role as PracticeRole)
-  }
+  const SidebarContent = () => (
+    <nav className="flex flex-col h-full">
+      {/* Brand */}
+      <div className="px-5 py-5 border-b border-[#2e2016]">
+        <div className="text-[#c8843a] font-bold text-base leading-tight">Practice Founder</div>
+        <div className="text-[#c4b49a]/50 text-xs mt-0.5">CRM</div>
+      </div>
+
+      {/* Nav */}
+      <div className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
+        {visibleSections.map(section => (
+          <div key={section.title}>
+            <div className="text-[#c4b49a]/40 text-[10px] font-semibold uppercase tracking-widest px-2 mb-1">
+              {section.title}
+            </div>
+            <div className="space-y-0.5">
+              {section.items.map(item => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                    isActive(item.href)
+                      ? 'bg-[#c8843a]/15 text-[#c8843a] font-medium'
+                      : 'text-[#c4b49a] hover:bg-[#2e2016] hover:text-white'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className="border-t border-[#2e2016] px-5 py-4">
+        {!isLoading && (
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-[#c8843a]/20 flex items-center justify-center text-[#c8843a] text-xs font-semibold shrink-0">
+              {employeeName?.[0]?.toUpperCase() ?? '?'}
+            </div>
+            <div className="min-w-0">
+              <div className="text-white text-xs font-medium truncate">{employeeName ?? 'Unknown'}</div>
+              <div className="text-[#c4b49a]/50 text-[10px] capitalize">{role ?? 'staff'}</div>
+            </div>
+          </div>
+        )}
+      </div>
+    </nav>
+  )
 
   return (
-    <aside className={`fixed top-0 left-0 h-screen w-64 flex flex-col z-40 border-r transition-colors
-      ${dark ? 'bg-[#120d08] border-[#2e2016] text-white' : 'bg-amber-50 border-amber-200 text-gray-900'}`}>
+    <>
+      {/* Desktop */}
+      <aside className="hidden lg:flex flex-col w-56 shrink-0 bg-[#150f0a] border-r border-[#2e2016] min-h-screen">
+        <SidebarContent />
+      </aside>
 
-      <div className={`px-5 py-5 border-b ${dark ? 'border-[#2e2016]' : 'border-amber-200'}`}>
-        <p className={`text-lg font-bold ${dark ? 'text-white' : 'text-gray-900'}`}>Practice Founder</p>
-        <p className={`text-xs mt-0.5 ${dark ? 'text-[#6b5a47]' : 'text-amber-700'}`}>Practice Management</p>
-      </div>
+      {/* Mobile toggle */}
+      <button
+        className="lg:hidden fixed top-3 left-3 z-50 w-9 h-9 rounded-lg bg-[#1e1810] border border-[#2e2016] flex items-center justify-center text-[#c8843a]"
+        onClick={() => setMobileOpen(!mobileOpen)}
+      >
+        {mobileOpen ? '×' : '☰'}
+      </button>
 
-      {!authLoading && employeeName && (
-        <div className={`mx-3 mt-3 px-3 py-2 rounded-xl border ${dark ? 'bg-[#1e1409] border-[#2e2016]' : 'bg-amber-100 border-amber-200'}`}>
-          <p className={`text-xs font-semibold truncate ${dark ? 'text-white' : 'text-gray-900'}`}>{employeeName}</p>
-          <p className={`text-[10px] mt-0.5 ${dark ? 'text-[#6b5a47]' : 'text-amber-700'}`}>
-            {{ admin: 'Admin', member: 'Staff' }[role ?? ''] ?? 'Staff'}
-          </p>
-        </div>
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <>
+          <div className="lg:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setMobileOpen(false)} />
+          <aside className="lg:hidden fixed inset-y-0 left-0 z-50 w-64 bg-[#150f0a] border-r border-[#2e2016] flex flex-col">
+            <SidebarContent />
+          </aside>
+        </>
       )}
-
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 mt-2">
-        {NAV.map((section, si) => {
-          if (!canSee(section.visibleTo)) return null
-          const items = section.items.filter(item => canSee(item.visibleTo))
-          if (items.length === 0) return null
-          return (
-            <div key={si} className={section.label ? 'mt-4' : ''}>
-              {section.label && (
-                <button onClick={() => toggleSection(section.label!)}
-                  className={`w-full flex items-center justify-between px-3 py-1.5 mb-1 text-[10px] font-semibold uppercase tracking-widest transition
-                    ${dark ? 'text-[#c8843a] hover:text-[#e8a05a]' : 'text-amber-600 hover:text-amber-800'}`}>
-                  {section.label}
-                  {collapsed[section.label] ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                </button>
-              )}
-              {!collapsed[section.label ?? ''] && items.map(item => {
-                const active = isActive(item.href)
-                return (
-                  <Link key={item.href} href={item.href}
-                    className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition
-                      ${active
-                        ? dark ? 'bg-[#c8843a] text-white shadow-lg shadow-[#c8843a]/20' : 'bg-amber-500 text-white shadow-md'
-                        : dark ? 'text-[#a08060] hover:bg-[#1e1409] hover:text-white' : 'text-gray-600 hover:bg-amber-100 hover:text-gray-900'
-                      }`}>
-                    <item.icon className="w-4 h-4 flex-shrink-0" />
-                    {item.label}
-                  </Link>
-                )
-              })}
-            </div>
-          )
-        })}
-      </nav>
-
-      <div className={`px-2 py-3 border-t space-y-0.5 ${dark ? 'border-[#2e2016]' : 'border-amber-200'}`}>
-        <button onClick={toggleDark}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition
-            ${dark ? 'text-[#a08060] hover:bg-[#1e1409] hover:text-white' : 'text-gray-600 hover:bg-amber-100 hover:text-gray-900'}`}>
-          {dark ? <><Sun className="w-4 h-4" /> Light Mode</> : <><Moon className="w-4 h-4" /> Dark Mode</>}
-        </button>
-        <button onClick={handleSignOut}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition
-            ${dark ? 'text-[#a08060] hover:bg-[#1e1409] hover:text-red-400' : 'text-gray-600 hover:bg-amber-100 hover:text-red-500'}`}>
-          <LogOut className="w-4 h-4" /> Sign out
-        </button>
-      </div>
-    </aside>
+    </>
   )
 }

@@ -697,7 +697,7 @@ export default function TasksPage() {
                 </div>
               )}
             </div>
-            {orgId && <div className="border-t border-[#2e2016] px-4 py-3"><RecordComments recordId={detailRow.id} tableName="tasks" orgId={orgId} /></div>}
+            {orgId && <div className="border-t border-[#2e2016] px-4 py-3"><RecordComments recordId={detailRow.id} tableName="tasks" orgId={orgId ?? null} /></div>}
             <div className="px-4 py-3 border-t border-[#2e2016] mt-auto">
               <button onClick={() => setDetailRow(null)} className="w-full py-2 text-xs text-[#6b5a47] hover:text-[#c4b49a] border border-[#2e2016] hover:border-[#c8843a]/30 rounded-lg transition-colors">Close</button>
             </div>
@@ -706,7 +706,7 @@ export default function TasksPage() {
       </div>
 
       {showNewModal && orgId && (
-        <NewTaskModal orgId={orgId} onClose={() => setShowNewModal(false)}
+        <NewTaskModal orgId={orgId ?? null} onClose={() => setShowNewModal(false)}
           onCreated={() => queryClient.invalidateQueries({ queryKey: ['tasks', orgId] })} />
       )}
 

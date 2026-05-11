@@ -642,7 +642,7 @@ export default function IssuesPage() {
             {/* ── Comments ── */}
             {orgId && (
               <div className="border-t border-[#2e2016] px-4 py-3">
-                <RecordComments recordId={detailRow.id} tableName="issues_breakdowns" orgId={orgId} />
+                <RecordComments recordId={detailRow.id} tableName="issues_breakdowns" orgId={orgId ?? null} />
               </div>
             )}
 
@@ -657,7 +657,7 @@ export default function IssuesPage() {
       </div>
 
       {showNewModal && orgId && (
-        <NewIssueModal orgId={orgId} onClose={() => setShowNewModal(false)}
+        <NewIssueModal orgId={orgId ?? null} onClose={() => setShowNewModal(false)}
           onCreated={() => queryClient.invalidateQueries({ queryKey: ['issues', orgId] })} />
       )}
 
