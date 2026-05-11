@@ -138,20 +138,20 @@ const DEFAULT_COLUMNS: ColumnDef[] = [
   { key: 'total_collections',         label: 'Total Collections',                     visible: true,  width: 140, pinned: false, align: 'right',  group: 'Collections' },
   { key: 'collection_rate',           label: 'Collection Rate',                       visible: true,  width: 130, pinned: false, align: 'right',  group: 'Collections' },
   { key: 'referral_completion_rate',  label: 'Referral Completion Rate',              visible: true,  width: 120, pinned: false, align: 'right',  group: 'Collections' },
-  { key: 'total_patients_encountered',label: 'Total Patients Encountered',            visible: true,  width: 110, pinned: false, align: 'right',  group: 'Dr. Evans KPIs' },
-  { key: 'total_charts_completed',    label: 'Total Charts Completed',                visible: true,  width: 100, pinned: false, align: 'right',  group: 'Dr. Evans KPIs' },
-  { key: 'charts_closed_same_day',    label: 'Charts Closed Same Day',                visible: true,  width: 130, pinned: false, align: 'right',  group: 'Dr. Evans KPIs' },
-  { key: 'charts_pending_prior_days', label: 'Charts Pending from Prior Days',        visible: true,  width: 120, pinned: false, align: 'right',  group: 'Dr. Evans KPIs' },
-  { key: 'charts_less_than_7_days',   label: 'Charts Less Than 7 Days Old',           visible: false, width: 120, pinned: false, align: 'right',  group: 'Dr. Evans KPIs' },
-  { key: 'time_last_chart_closed',    label: 'Time Last Chart Closed',                visible: true,  width: 140, pinned: false, align: 'left',   group: 'Dr. Evans KPIs' },
-  { key: 'notes_signed_today',        label: 'Notes Signed Today?',                   visible: true,  width: 120, pinned: false, align: 'center', group: 'Dr. Evans KPIs' },
-  { key: 'schedule_reflected_target', label: 'Schedule Reflected Target Mix?',        visible: true,  width: 150, pinned: false, align: 'center', group: 'Dr. Evans KPIs' },
-  { key: 'schedule_notes',            label: 'Schedule Notes',                        visible: false, width: 180, pinned: false, align: 'left',   group: 'Dr. Evans KPIs' },
-  { key: 'staffing_gap',              label: 'Staffing Gap Today?',                   visible: true,  width: 120, pinned: false, align: 'center', group: 'Dr. Evans KPIs' },
-  { key: 'role_impacted',             label: 'Role Impacted',                         visible: false, width: 130, pinned: false, align: 'left',   group: 'Dr. Evans KPIs' },
-  { key: 'gap_duration',              label: 'Duration of Staffing Gap',              visible: false, width: 120, pinned: false, align: 'left',   group: 'Dr. Evans KPIs' },
-  { key: 'physician_time_delegatable',label: 'Physician Time That Could Be Delegated',visible: false, width: 160, pinned: false, align: 'left',   group: 'Dr. Evans KPIs' },
-  { key: 'primary_bottleneck',        label: 'Primary Bottleneck Today',              visible: false, width: 180, pinned: false, align: 'left',   group: 'Dr. Evans KPIs' },
+  { key: 'total_patients_encountered',label: 'Total Patients Encountered',            visible: true,  width: 110, pinned: false, align: 'right',  group: 'Physician KPIs' },
+  { key: 'total_charts_completed',    label: 'Total Charts Completed',                visible: true,  width: 100, pinned: false, align: 'right',  group: 'Physician KPIs' },
+  { key: 'charts_closed_same_day',    label: 'Charts Closed Same Day',                visible: true,  width: 130, pinned: false, align: 'right',  group: 'Physician KPIs' },
+  { key: 'charts_pending_prior_days', label: 'Charts Pending from Prior Days',        visible: true,  width: 120, pinned: false, align: 'right',  group: 'Physician KPIs' },
+  { key: 'charts_less_than_7_days',   label: 'Charts Less Than 7 Days Old',           visible: false, width: 120, pinned: false, align: 'right',  group: 'Physician KPIs' },
+  { key: 'time_last_chart_closed',    label: 'Time Last Chart Closed',                visible: true,  width: 140, pinned: false, align: 'left',   group: 'Physician KPIs' },
+  { key: 'notes_signed_today',        label: 'Notes Signed Today?',                   visible: true,  width: 120, pinned: false, align: 'center', group: 'Physician KPIs' },
+  { key: 'schedule_reflected_target', label: 'Schedule Reflected Target Mix?',        visible: true,  width: 150, pinned: false, align: 'center', group: 'Physician KPIs' },
+  { key: 'schedule_notes',            label: 'Schedule Notes',                        visible: false, width: 180, pinned: false, align: 'left',   group: 'Physician KPIs' },
+  { key: 'staffing_gap',              label: 'Staffing Gap Today?',                   visible: true,  width: 120, pinned: false, align: 'center', group: 'Physician KPIs' },
+  { key: 'role_impacted',             label: 'Role Impacted',                         visible: false, width: 130, pinned: false, align: 'left',   group: 'Physician KPIs' },
+  { key: 'gap_duration',              label: 'Duration of Staffing Gap',              visible: false, width: 120, pinned: false, align: 'left',   group: 'Physician KPIs' },
+  { key: 'physician_time_delegatable',label: 'Physician Time That Could Be Delegated',visible: false, width: 160, pinned: false, align: 'left',   group: 'Physician KPIs' },
+  { key: 'primary_bottleneck',        label: 'Primary Bottleneck Today',              visible: false, width: 180, pinned: false, align: 'left',   group: 'Physician KPIs' },
 ];
 
 const FILTER_OPS = [
@@ -208,7 +208,7 @@ const DEMO: DailyTrackerRow[] = [
     physician_time_delegatable: 'Prior auth calls', primary_bottleneck: 'MA shortage',
   },
   {
-    id: '3', org_id: 'demo', date: '2026-04-19', submitted_by: 'Dr. Evans',
+    id: '3', org_id: 'demo', date: '2026-04-19', submitted_by: 'Physician',
     awv: 2, cpe: 3, new_cpe: 0, wwc: 2, wwe: 1, immigration_physical: 0,
     new_patient_evaluation: 1, follow_up_visits: 9, six_visits: 2, nurse_visits: 4,
     ccm: 3, telehealth_visits: 2, wellness_evaluation: 0, wellness_follow_up: 3,
@@ -359,10 +359,11 @@ export default function DailyTrackerPage() {
 
   const allRows = useCallback(() => {
     let r = [...localRows];
+    const isPhysicianName = (n: string) => n.includes('dr') || n.includes('physician') || n.includes('evans') || n.includes('doctor');
     if (submitterFilter === 'receptionist') {
-      r = r.filter(row => { const name = (row.submitted_by ?? '').toLowerCase(); return name.includes('recept') || name.includes('front') || name.includes('staff'); });
+      r = r.filter(row => !isPhysicianName((row.submitted_by ?? '').toLowerCase()));
     } else if (submitterFilter === 'dr_evans') {
-      r = r.filter(row => { const name = (row.submitted_by ?? '').toLowerCase(); return name.includes('evans') || name.includes('dr') || name.includes('doctor'); });
+      r = r.filter(row => isPhysicianName((row.submitted_by ?? '').toLowerCase()));
     }
     if (search) { const q = search.toLowerCase(); r = r.filter(row => Object.values(row).some(v => String(v).toLowerCase().includes(q))); }
     if (dateRange.from) r = r.filter(row => row.date >= dateRange.from);
@@ -569,7 +570,7 @@ export default function DailyTrackerPage() {
         {([
           { key: 'all',          label: 'All Records',  icon: Layers },
           { key: 'receptionist', label: 'Receptionist', icon: User },
-          { key: 'dr_evans',     label: 'Dr. Evans',    icon: Stethoscope },
+          { key: 'dr_evans',     label: 'Physician',    icon: Stethoscope },
         ] as { key: SubmitterType; label: string; icon: React.ElementType }[]).map(tab => (
           <button key={tab.key} onClick={() => { setSubmitterFilter(tab.key); setPage(1); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm border font-medium transition
@@ -984,8 +985,8 @@ function NewTrackerForm({ onSave, onCancel }: { onSave: (row: DailyTrackerRow) =
   return (
     <div className="flex flex-col max-h-[80vh]">
       <div className="flex border-b border-[#2e2016] px-5">
-        {([{ key: 'receptionist', label: 'Receptionist KPIs', icon: User }, { key: 'dr_evans', label: 'Dr. Evans KPIs', icon: Stethoscope }] as { key: 'receptionist' | 'dr_evans'; label: string; icon: React.ElementType }[]).map(tab => (
-          <button key={tab.key} onClick={() => { setActiveTab(tab.key); set('submitted_by', tab.key === 'dr_evans' ? 'Dr. Evans' : 'Receptionist'); }}
+        {([{ key: 'receptionist', label: 'Receptionist KPIs', icon: User }, { key: 'dr_evans', label: 'Physician KPIs', icon: Stethoscope }] as { key: 'receptionist' | 'dr_evans'; label: string; icon: React.ElementType }[]).map(tab => (
+          <button key={tab.key} onClick={() => { setActiveTab(tab.key); set('submitted_by', tab.key === 'dr_evans' ? 'Physician' : 'Receptionist'); }}
             className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition ${activeTab === tab.key ? 'border-[#c8843a] text-[#e8a05a]' : 'border-transparent text-[#6b5a47] hover:text-[#a08060]'}`}>
             <tab.icon className="w-3.5 h-3.5" />{tab.label}
           </button>
