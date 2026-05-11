@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { createBrowserClient } from '@supabase/ssr';
 import { useOrgUser } from '@/lib/useOrgUser';
-import { useEmployeeNames, resolveName } from '@/lib/useEmployeeNames';
+import { useEmployeeNames } from '@/lib/useEmployeeNames';
 import RecordComments from '@/components/RecordComments';
 import {
   Plus, Filter, Eye, EyeOff, GripVertical, ChevronDown, ChevronUp,
