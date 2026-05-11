@@ -26,46 +26,46 @@ const NAV: NavSection[] = [
   {
     title: 'Financial Tracker',
     items: [
-      { label: 'Weekly Financial Report', href: '/dashboard/financials', roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'Daily Receptionist Tracker', href: '/dashboard/daily-tracker/receptionist', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
-      { label: 'Daily Physician Tracker', href: '/dashboard/daily-tracker/physician', roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'Membership Tracker', href: '/dashboard/membership-tracker', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Weekly Financial Report',     href: '/dashboard/financials',        roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Daily Receptionist Tracker',  href: '/dashboard/daily-tracker',     roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Daily Physician Tracker',     href: '/dashboard/daily-tracker',     roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Membership Tracker',          href: '/dashboard/membership-tracker',roles: ['pf_admin', 'pf_team', 'client_owner'] },
     ],
   },
   {
     title: 'Task Management',
     items: [
-      { label: 'Tasks', href: '/dashboard/tasks', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
-      { label: 'Deliverables', href: '/dashboard/deliverables', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Tasks',        href: '/dashboard/tasks',       roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Deliverables', href: '/dashboard/deliverables',roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
     ],
   },
   {
     title: 'Huddle + Issues',
     items: [
-      { label: 'Daily Huddle Log', href: '/dashboard/huddle', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
-      { label: 'Issues & Breakdowns', href: '/dashboard/issues', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Daily Huddle Log',      href: '/dashboard/huddle', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Issues & Breakdowns',   href: '/dashboard/issues', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
     ],
   },
   {
     title: 'Business HQ',
     items: [
-      { label: 'Core Functions', href: '/dashboard/business-mapping/core-functions', roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'Systems', href: '/dashboard/business-mapping/systems', roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'Processes', href: '/dashboard/business-mapping/processes', roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'SOPs', href: '/dashboard/business-mapping/sops', roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'Roles', href: '/dashboard/business-mapping/roles', roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'Employees', href: '/dashboard/business-mapping/employees', roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'Services', href: '/dashboard/business-mapping/services', roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'Membership Plans', href: '/dashboard/membership', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Core Functions',  href: '/dashboard/business-hq/core-functions', roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Systems',         href: '/dashboard/business-hq/systems',        roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Processes',       href: '/dashboard/business-hq/processes',      roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'SOPs',            href: '/dashboard/business-hq/sops',           roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Roles',           href: '/dashboard/business-hq/roles',          roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Employees',       href: '/dashboard/business-hq/employees',      roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Services',        href: '/dashboard/business-hq/services',       roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Membership Plans',href: '/dashboard/membership',                 roles: ['pf_admin', 'pf_team', 'client_owner'] },
     ],
   },
   {
     title: 'Billing Activities',
     items: [
-      { label: 'Daily Billing & Claims', href: '/dashboard/billing', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
-      { label: 'Charge Lag (Internal)', href: '/dashboard/billing/charge-lag', roles: ['pf_admin', 'pf_team'] },
-      { label: 'AR Report (Internal)', href: '/dashboard/billing/ar-report', roles: ['pf_admin', 'pf_team'] },
-      { label: 'Claims Summary (Internal)', href: '/dashboard/billing/claims-summary', roles: ['pf_admin', 'pf_team'] },
+      { label: 'Daily Billing & Claims',    href: '/dashboard/billing',              roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Charge Lag (Internal)',     href: '/dashboard/billing/charge-lag',   roles: ['pf_admin', 'pf_team'] },
+      { label: 'AR Report (Internal)',      href: '/dashboard/billing/ar-report',    roles: ['pf_admin', 'pf_team'] },
+      { label: 'Claims Summary (Internal)', href: '/dashboard/billing/claims-summary',roles: ['pf_admin', 'pf_team'] },
     ],
   },
 ]
@@ -101,7 +101,7 @@ export default function Sidebar() {
             <div className="space-y-0.5">
               {section.items.map(item => (
                 <Link
-                  key={item.href}
+                  key={item.label}
                   href={item.href}
                   onClick={() => setMobileOpen(false)}
                   className={`block px-3 py-2 rounded-lg text-sm transition-colors ${

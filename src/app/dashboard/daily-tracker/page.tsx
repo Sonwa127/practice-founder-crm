@@ -896,7 +896,7 @@ export default function DailyTrackerPage() {
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowCreate(false)} />
-          <div className="relative w-full max-w-3xl bg-[#1e1409] border border-[#3a2a1a] rounded-xl shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-3xl bg-[#1e1409] border border-[#3a2a1a] rounded-xl shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#2e2016]">
               <h2 className="font-bold text-white text-lg">New Daily Tracker Record</h2>
               <button onClick={() => setShowCreate(false)} className="text-[#6b5a47] hover:text-white"><X className="w-5 h-5" /></button>

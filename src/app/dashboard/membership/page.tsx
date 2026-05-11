@@ -448,7 +448,7 @@ function MembershipContent() {
       {showCreate&&(
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={()=>setShowCreate(false)}/>
-          <div className="relative w-full max-w-xl bg-[#1e1409] border border-[#3a2a1a] rounded-xl shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-xl bg-[#1e1409] border border-[#3a2a1a] rounded-xl shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#2e2016]"><h2 className="font-bold text-white text-lg">New Membership Plan</h2><button onClick={()=>setShowCreate(false)} className="text-[#6b5a47] hover:text-white"><X className="w-5 h-5"/></button></div>
             <PlanForm onSave={data=>createMut.mutate(data)} onCancel={()=>setShowCreate(false)} saving={createMut.isPending}/>
           </div>
@@ -457,7 +457,7 @@ function MembershipContent() {
       {editPlan&&(
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={()=>setEditPlan(null)}/>
-          <div className="relative w-full max-w-xl bg-[#1e1409] border border-[#3a2a1a] rounded-xl shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-xl bg-[#1e1409] border border-[#3a2a1a] rounded-xl shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[#2e2016]"><h2 className="font-bold text-white text-lg">Edit Plan</h2><button onClick={()=>setEditPlan(null)} className="text-[#6b5a47] hover:text-white"><X className="w-5 h-5"/></button></div>
             <PlanForm initial={editPlan} onSave={data=>updateMut.mutate({id:editPlan.id,data})} onCancel={()=>setEditPlan(null)} saving={updateMut.isPending}/>
           </div>
