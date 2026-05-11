@@ -286,7 +286,7 @@ export default function HuddlePage() {
   const supabase    = createClient()
   const queryClient = useQueryClient()
   const { orgId, canViewAll } = useOrgUser()
-  const { resolveName } = useEmployeeNames(orgId ?? undefined)
+  const { resolveName } = useEmployeeNames(orgId ?? null)
   const canCreate = canViewAll
 
   const [search, setSearch]                 = useState('')

@@ -272,7 +272,7 @@ export default function IssuesPage() {
   const supabase    = createClient()
   const queryClient = useQueryClient()
   const { orgId }   = useOrgUser()
-  const { resolveName } = useEmployeeNames(orgId ?? undefined)
+  const { resolveName } = useEmployeeNames(orgId ?? null)
 
   const [search, setSearch]                 = useState('')
   const [rowHeight, setRowHeight]           = useState<RowHeight>('medium')

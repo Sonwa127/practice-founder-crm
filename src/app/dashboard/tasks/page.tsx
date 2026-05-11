@@ -309,7 +309,7 @@ export default function TasksPage() {
   const supabase = createClient()
   const queryClient = useQueryClient()
   const { orgId, employeeId, isLoading: userLoading } = useOrgUser()
-  const { resolveName } = useEmployeeNames(orgId ?? undefined)
+  const { resolveName } = useEmployeeNames(orgId ?? null)
 
   const [search, setSearch]         = useState('')
   const [rowHeight, setRowHeight]   = useState<RowHeight>('medium')
