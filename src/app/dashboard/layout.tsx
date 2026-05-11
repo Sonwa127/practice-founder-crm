@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { ThemeProvider } from '@/components/ThemeContext'
 import Sidebar from '@/components/Sidebar'
 import MainContent from '@/components/MainContent'
