@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { createBrowserClient } from '@supabase/ssr';
 import { useOrgUser } from '@/lib/useOrgUser';
@@ -306,6 +307,7 @@ export default function DailyTrackerPage() {
   );
   const { orgId, employeeName, isLoading: authLoading } = useOrgUser();
   const { resolveName: resolveEmp } = useEmployeeNames(orgId);
+  const searchParams = useSearchParams();
 
   const [columns,         setColumns]         = useState<ColumnDef[]>(DEFAULT_COLUMNS);
   const [localRows,       setLocalRows]       = useState<DailyTrackerRow[]>(DEMO);
@@ -325,7 +327,12 @@ export default function DailyTrackerPage() {
   const [showCreate,      setShowCreate]      = useState(false);
   const [savedViews,      setSavedViews]      = useState<SavedView[]>([]);
   const [viewName,        setViewName]        = useState('');
-  const [submitterFilter, setSubmitterFilter] = useState<SubmitterType>('all');
+  const [submitterFilter, setSubmitterFilter] = useState<SubmitterType>(() => {
+    const view = searchParams.get('view');
+    if (view === 'physician') return 'dr_evans';
+    if (view === 'receptionist') return 'receptionist';
+    return 'all';
+  });
 
   const dragColIdx   = useRef<number | null>(null);
   const dragOverIdx  = useRef<number | null>(null);
@@ -499,10 +506,10 @@ export default function DailyTrackerPage() {
     switch (col.key) {
       case 'submitted_by': {
         const name = isUUID(row.submitted_by) ? `Staff (${row.submitted_by.slice(0,6)}…)` : (row.submitted_by || '—');
-        const isEvans = name.toLowerCase().includes('evans') || name.toLowerCase().includes('dr');
+        const isPhysician = name.toLowerCase().includes('dr') || name.toLowerCase().includes('physician') || name.toLowerCase().includes('evans') || name.toLowerCase().includes('doctor');
         return (
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${isEvans ? 'bg-[#1e3a5f] text-[#60a5fa] border-[#2a4a6f]' : 'bg-[#5c3d1e] text-[#e8c07a] border-[#7a5230]'}`}>
-            {isEvans ? <Stethoscope className="w-3 h-3" /> : <User className="w-3 h-3" />}{name}
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border ${isPhysician ? 'bg-[#1e3a5f] text-[#60a5fa] border-[#2a4a6f]' : 'bg-[#5c3d1e] text-[#e8c07a] border-[#7a5230]'}`}>
+            {isPhysician ? <Stethoscope className="w-3 h-3" /> : <User className="w-3 h-3" />}{name}
           </span>
         );
       }
@@ -896,7 +903,7 @@ export default function DailyTrackerPage() {
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowCreate(false)} />
-          <div className="relative w-full max-w-3xl bg-[#1e1409] border border-[#3a2a1a] rounded-xl shadow-2xl">
+          <div className="relative w-full max-w-3xl bg-[#1e1409] border border-[#3a2a1a] rounded-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#2e2016]">
               <h2 className="font-bold text-white text-lg">New Daily Tracker Record</h2>
               <button onClick={() => setShowCreate(false)} className="text-[#6b5a47] hover:text-white"><X className="w-5 h-5" /></button>
@@ -977,8 +984,8 @@ function NewTrackerForm({ onSave, onCancel }: { onSave: (row: DailyTrackerRow) =
   return (
     <div className="flex flex-col max-h-[80vh]">
       <div className="flex border-b border-[#2e2016] px-5">
-        {([{ key: 'receptionist', label: 'Receptionist KPIs', icon: User }, { key: 'dr_evans', label: 'Physician KPIs', icon: Stethoscope }] as { key: 'receptionist' | 'dr_evans'; label: string; icon: React.ElementType }[]).map(tab => (
-          <button key={tab.key} onClick={() => { setActiveTab(tab.key); set('submitted_by', tab.key === 'dr_evans' ? 'Physician' : 'Receptionist'); }}
+        {([{ key: 'receptionist', label: 'Receptionist KPIs', icon: User }, { key: 'dr_evans', label: 'Dr. Evans KPIs', icon: Stethoscope }] as { key: 'receptionist' | 'dr_evans'; label: string; icon: React.ElementType }[]).map(tab => (
+          <button key={tab.key} onClick={() => { setActiveTab(tab.key); set('submitted_by', tab.key === 'dr_evans' ? 'Dr. Evans' : 'Receptionist'); }}
             className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition ${activeTab === tab.key ? 'border-[#c8843a] text-[#e8a05a]' : 'border-transparent text-[#6b5a47] hover:text-[#a08060]'}`}>
             <tab.icon className="w-3.5 h-3.5" />{tab.label}
           </button>
