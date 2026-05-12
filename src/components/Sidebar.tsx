@@ -27,7 +27,7 @@ const NAV: NavSection[] = [
     title: 'Financial Tracker',
     items: [
       { label: 'Weekly Financial Report',    href: '/dashboard/financials',                      roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'Daily Receptionist Tracker', href: '/dashboard/daily-tracker',    roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Daily Receptionist Tracker', href: '/dashboard/receptionist-tracker', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
       { label: 'Daily Physician Tracker',    href: '/dashboard/physician-tracker', roles: ['pf_admin', 'pf_team', 'client_owner'] },
       { label: 'Membership Tracker',         href: '/dashboard/membership-tracker',              roles: ['pf_admin', 'pf_team', 'client_owner'] },
     ],
