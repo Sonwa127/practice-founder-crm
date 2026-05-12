@@ -36,6 +36,9 @@ interface DashboardSummary {
   task_completion_rate_pct: number | null
   completed_tasks: number | null
   total_active_tasks: number | null
+  billing_owner: string | null
+  physician_owner: string | null
+  operations_owner: string | null
 }
 
 interface SparkPoint {
@@ -66,8 +69,9 @@ function useOrgAccess() {
 
       if (!profile?.org_id) { setState({ orgId: null, hasAccess: false, loading: false }); return }
 
-      // pf_admin and pf_team have platform-level access — never blocked by client flags
-      const isPlatformAdmin = profile.role === 'pf_admin' || profile.role === 'pf_team'
+      // pf_admin, pf_team, and client_owner always have full access
+      // Only client_staff are gated by the named-person dashboard_access flag
+      const isPlatformAdmin = profile.role === 'pf_admin' || profile.role === 'pf_team' || profile.role === 'client_owner'
       if (isPlatformAdmin) {
         setState({ orgId: profile.org_id, hasAccess: true, loading: false })
         return
@@ -282,6 +286,10 @@ function DashboardContent({ orgId }: { orgId: string }) {
 
   const s = summary
 
+  const billingOwner    = s.billing_owner    ?? 'Billing'
+  const physicianOwner  = s.physician_owner  ?? 'Physician'
+  const operationsOwner = s.operations_owner ?? 'Operations'
+
   const revenueStatus     = getStatus(s.revenue_wow_pct,            { onTarget: v => v >= -10, critical: v => v <= -20 })
   const collectionsStatus = getStatus(s.collection_rate,            { onTarget: v => v >= 95,  critical: v => v < 85 })
   const denialStatus      = getStatus(s.denial_rate_pct,            { onTarget: v => v < 5,    critical: v => v > 10 })
@@ -312,7 +320,7 @@ function DashboardContent({ orgId }: { orgId: string }) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">Weekly KPI Dashboard</h1>
-          <p className="text-[#7a6a56] text-sm mt-0.5">Monday review · Dr. Akita &amp; Mykael</p>
+          <p className="text-[#7a6a56] text-sm mt-0.5">Monday review · Weekly summary</p>
         </div>
         <div className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
           overall === 'critical' ? 'bg-red-500/10 text-red-400 border border-red-500/20'
@@ -331,26 +339,26 @@ function DashboardContent({ orgId }: { orgId: string }) {
       <section>
         <SectionHeader title="Revenue" icon="💰" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <KpiCard label="Revenue Collected" owner="Mykael"
+          <KpiCard label="Revenue Collected" owner={billingOwner}
             value={fmt.dollar(s.revenue_collected)} prior={fmt.dollar(s.prev_revenue)}
             valueNote={s.revenue_wow_pct !== null ? `${s.revenue_wow_pct >= 0 ? '+' : ''}${s.revenue_wow_pct}% WoW` : undefined}
             target="Track vs. prior week" status={revenueStatus}
             alert="Revenue down >20% WoW. Compare to same week prior month and flag.">
             {sparkData && sparkData.length > 1 && <RevenueTrendChart data={sparkData} />}
           </KpiCard>
-          <KpiCard label="Collections Rate" owner="Mykael"
+          <KpiCard label="Collections Rate" owner={billingOwner}
             value={fmt.pct(s.collection_rate)} target="≥ 95%" status={collectionsStatus}
-            alert="Below 95% — Mykael identifies gap claims at Monday review." />
+            alert={`Below 95% — ${billingOwner} identifies gap claims at Monday review.`} />
         </div>
       </section>
 
       <section>
         <SectionHeader title="Billing" icon="🧾" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <KpiCard label="Charge Lag — Claims Within 24 Hrs" owner="Mykael"
+          <KpiCard label="Charge Lag — Claims Within 24 Hrs" owner={billingOwner}
             value={fmt.pct(s.charge_lag_within_24hr_pct)} target="< 24 hrs (> 95% of claims)"
             status={chargelagStatus} alert="Any claim > 48 hrs: identify chart and cause. Correct same week." />
-          <KpiCard label="Denial Rate" owner="Mykael"
+          <KpiCard label="Denial Rate" owner={billingOwner}
             value={fmt.pct(s.denial_rate_pct)} target="< 5%" status={denialStatus}
             alert="> 10% triggers root cause analysis. Same pattern twice = process fix." />
         </div>
@@ -359,12 +367,12 @@ function DashboardContent({ orgId }: { orgId: string }) {
       <section>
         <SectionHeader title="Accounts Receivable" icon="📋" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <KpiCard label="Open Denials (% of AR)" owner="Mykael"
+          <KpiCard label="Open Denials (% of AR)" owner={billingOwner}
             value={fmt.pct(arOpenPct)}
             valueNote={s.denials_still_open !== null ? `${s.denials_still_open} open` : undefined}
             target="< 5% of AR" status={arStatus}
             alert="> 10%: each account named. Decision required: appeal / write-off / plan." />
-          <KpiCard label="Denial Resubmission" owner="Mykael"
+          <KpiCard label="Denial Resubmission" owner={billingOwner}
             value={s.denials_resolved !== null ? `${s.denials_resolved} resolved` : null}
             valueNote={s.denials_still_open !== null ? `${s.denials_still_open} still open` : undefined}
             target="< 3 business days" status={arStatus}
@@ -375,28 +383,28 @@ function DashboardContent({ orgId }: { orgId: string }) {
       <section>
         <SectionHeader title="Operations" icon="⚙️" />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <KpiCard label="Notes Closed Same Day" owner="Dr. Akita"
+          <KpiCard label="Notes Closed Same Day" owner={physicianOwner}
             value={fmt.pct(s.notes_closed_same_day_pct)} target="100%" status={notesStatus}
             alert="Any miss: chart named and closed before Monday review ends." />
-          <KpiCard label="Referral Completion Rate" owner="Danna"
+          <KpiCard label="Referral Completion Rate" owner={operationsOwner}
             value={fmt.pct(s.referral_completion_rate)} target="100% tracked" status={referralStatus}
-            alert="Any untracked referral: Danna closes gap before EOD Monday." />
-          <KpiCard label="Task Completion Rate" owner="Danna"
+            alert={`Any untracked referral: ${operationsOwner} closes gap before EOD Monday.`} />
+          <KpiCard label="Task Completion Rate" owner={operationsOwner}
             value={fmt.pct(s.task_completion_rate_pct)}
             valueNote={s.completed_tasks != null && s.total_active_tasks != null
               ? `${s.completed_tasks}/${s.total_active_tasks} tasks` : undefined}
             target="> 95%" status={taskStatus}
-            alert="Below 95%: Danna identifies pattern at Tuesday huddle." />
+            alert={`Below 95%: ${operationsOwner} identifies pattern at Tuesday huddle.`} />
         </div>
       </section>
 
       <section>
         <SectionHeader title="Payroll &amp; Owner Draw" icon="💼" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <KpiCard label="Payroll as % of Collected Revenue" owner="Dr. Akita"
+          <KpiCard label="Payroll as % of Collected Revenue" owner={physicianOwner}
             value={fmt.pct(s.payroll_pct_of_revenue)} target="Typically ≤ 40%" status={payrollStatus}
             alert="Rising payroll % over 3+ consecutive weeks requires a staffing structure review." />
-          <KpiCard label="Owner Draw — On Schedule?" owner="Dr. Akita"
+          <KpiCard label="Owner Draw — On Schedule?" owner={physicianOwner}
             value={fmt.bool(s.owner_pay_distributed)}
             valueNote={s.owner_pay_for_week ? `${fmt.dollar(s.owner_pay_for_week)} this week` : undefined}
             target="Yes — on schedule every week" status={ownerStatus}
