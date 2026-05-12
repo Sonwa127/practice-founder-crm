@@ -27,8 +27,8 @@ const NAV: NavSection[] = [
     title: 'Financial Tracker',
     items: [
       { label: 'Weekly Financial Report',    href: '/dashboard/financials',                      roles: ['pf_admin', 'pf_team', 'client_owner'] },
-      { label: 'Daily Receptionist Tracker', href: '/dashboard/daily-tracker?view=receptionist', roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
-      { label: 'Daily Physician Tracker',    href: '/dashboard/daily-tracker?view=physician',    roles: ['pf_admin', 'pf_team', 'client_owner'] },
+      { label: 'Daily Receptionist Tracker', href: '/dashboard/daily-tracker',    roles: ['pf_admin', 'pf_team', 'client_owner', 'client_staff'] },
+      { label: 'Daily Physician Tracker',    href: '/dashboard/physician-tracker', roles: ['pf_admin', 'pf_team', 'client_owner'] },
       { label: 'Membership Tracker',         href: '/dashboard/membership-tracker',              roles: ['pf_admin', 'pf_team', 'client_owner'] },
     ],
   },
@@ -71,16 +71,8 @@ const NAV: NavSection[] = [
 ]
 
 function isActive(pathname: string, href: string): boolean {
-  const [hrefPath, hrefQuery] = href.split('?')
   if (href === '/dashboard') return pathname === '/dashboard'
-  if (hrefQuery) {
-    const params = new URLSearchParams(hrefQuery)
-    const currentParams = new URLSearchParams(
-      typeof window !== 'undefined' ? window.location.search : ''
-    )
-    return pathname === hrefPath && params.get('view') === currentParams.get('view')
-  }
-  return pathname.startsWith(hrefPath)
+  return pathname.startsWith(href)
 }
 
 function NavContent({
