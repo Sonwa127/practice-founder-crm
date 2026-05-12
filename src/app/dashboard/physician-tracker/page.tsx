@@ -325,6 +325,7 @@ export default function PhysicianTrackerPage() {
   const { data: dbRows } = useQuery({
     queryKey: ['physician_tracker', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase.from('physician_tracker').select('*')
         .eq('org_id', orgId).order('date', { ascending: false });

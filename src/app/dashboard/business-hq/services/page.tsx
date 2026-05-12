@@ -63,6 +63,7 @@ function ServicesContent() {
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['services', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.from('services').select('*').eq('org_id', orgId!).order('name')
       if (error) throw error
@@ -73,6 +74,7 @@ function ServicesContent() {
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.from('employees').select('id, name').eq('org_id', orgId!).order('name')
       if (error) throw error

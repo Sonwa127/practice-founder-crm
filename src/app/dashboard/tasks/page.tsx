@@ -345,6 +345,7 @@ export default function TasksPage() {
   const { data: tasks, isLoading, refetch } = useQuery<Task[]>({
     queryKey: ['tasks', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.from('tasks').select('*').eq('org_id', orgId!)
         .order('due_date', { ascending: true, nullsFirst: false })

@@ -29,7 +29,7 @@ export default function RecordComments({ recordId, tableName, orgId }: RecordCom
       .select('id, author_name, body, created_at')
       .eq('record_id', recordId)
       .eq('table_name', tableName)
-      .eq('practice_id', orgId)
+      .eq('org_id', orgId)
       .order('created_at', { ascending: true })
     setComments((data as Comment[]) ?? [])
   }
@@ -53,7 +53,7 @@ export default function RecordComments({ recordId, tableName, orgId }: RecordCom
     await supabase.from('record_comments').insert({
       record_id: recordId,
       table_name: tableName,
-      practice_id: orgId,
+      org_id: orgId,
       author_id: user?.id ?? null,
       author_name: emp?.name ?? user?.email ?? 'Unknown',
       body: body.trim(),

@@ -313,6 +313,7 @@ export default function HuddlePage() {
   const { data: huddles, isLoading, refetch } = useQuery<Huddle[]>({
     queryKey: ['huddle', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('daily_huddle_log').select('*').eq('org_id', orgId!)

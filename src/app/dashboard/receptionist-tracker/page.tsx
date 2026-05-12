@@ -376,6 +376,7 @@ export default function ReceptionistTrackerPage() {
   const { data: dbRows, isLoading } = useQuery({
     queryKey: ['receptionist_tracker', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase
         .from('receptionist_tracker')

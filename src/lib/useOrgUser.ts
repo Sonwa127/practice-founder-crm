@@ -34,7 +34,7 @@ export function useOrgUser(): OrgUser {
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('practice_id, role, full_name')
+        .select('org_id, role, full_name')
         .eq('id', user.id)
         .single()
 
@@ -44,40 +44,37 @@ export function useOrgUser(): OrgUser {
       if ((profile.role as string) === 'admin')  role = 'pf_admin' as Role
       if ((profile.role as string) === 'member') role = 'client_staff' as Role
 
-      // Resolve employee record
       let employeeId: string | null = null
       let employeeName: string | null = null
-      if (profile.practice_id) {
+      if (profile.org_id) {
         const { data: emp } = await supabase
           .from('employees')
           .select('id, name')
-          .eq('org_id', profile.practice_id)
+          .eq('org_id', profile.org_id)
           .ilike('email', user.email ?? '')
           .maybeSingle()
         if (emp) { employeeId = emp.id; employeeName = emp.name }
       }
 
-      // Fallback name chain: employee name → profile full_name → email prefix
       if (!employeeName) {
         employeeName = profile.full_name
-          ?? user.email?.split('@')[0]?.replace(/[._]/g, ' ')
+          ?? user.email?.split('@')[0]?.replace(/[._-]/g, ' ')
           ?? 'Unknown'
       }
 
-      // Resolve org name
       let orgName: string | null = null
-      if (profile.practice_id) {
+      if (profile.org_id) {
         const { data: org } = await supabase
           .from('organizations')
           .select('name')
-          .eq('id', profile.practice_id)
+          .eq('id', profile.org_id)
           .single()
         orgName = org?.name ?? null
       }
 
       setState({
         userId: user.id,
-        orgId: profile.practice_id ?? null,
+        orgId: profile.org_id ?? null,
         orgName,
         employeeId,
         employeeName,

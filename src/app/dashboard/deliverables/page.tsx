@@ -91,6 +91,7 @@ function DeliverablesContent() {
   const { data: deliverables = [], isLoading } = useQuery({
     queryKey: ['deliverables', orgId, canViewAll, employeeId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       let q = supabase
         .from('deliverables')
@@ -110,6 +111,7 @@ function DeliverablesContent() {
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks-list', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
@@ -124,6 +126,7 @@ function DeliverablesContent() {
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')

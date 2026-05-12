@@ -61,6 +61,7 @@ function ProcessesContent() {
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['processes', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('processes')
@@ -75,6 +76,7 @@ function ProcessesContent() {
   const { data: systems = [] } = useQuery({
     queryKey: ['systems-list', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.from('systems').select('id, name').eq('org_id', orgId!).order('name')
       if (error) throw error

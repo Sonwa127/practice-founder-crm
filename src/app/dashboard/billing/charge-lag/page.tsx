@@ -10,7 +10,7 @@ import RoleGuard from '@/components/RoleGuard'
 
 interface ChargeLagEntry {
   id: string
-  practice_id: string
+  org_id: string
   date: string
   submitted_by: string | null
   total_charts_closed: number | null
@@ -68,11 +68,12 @@ function ChargeLagContent() {
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['charge-lag', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('charge_lag_submissions')
         .select('*')
-        .eq('practice_id', orgId!)
+        .eq('org_id', orgId!)
         .order('date', { ascending: false })
       if (error) throw error
       return data as ChargeLagEntry[]
@@ -82,6 +83,7 @@ function ChargeLagContent() {
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.from('employees').select('id, name').eq('org_id', orgId!).order('name')
       if (error) throw error
@@ -94,7 +96,7 @@ function ChargeLagContent() {
   const createMutation = useMutation({
     mutationFn: async (p: typeof emptyForm) => {
       const { error } = await supabase.from('charge_lag_submissions').insert({
-        practice_id: orgId,
+        org_id: orgId,
         date: p.date,
         submitted_by: p.submitted_by || null,
         total_charts_closed: p.total_charts_closed ? Number(p.total_charts_closed) : null,

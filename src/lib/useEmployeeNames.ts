@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-interface Employee {
-  id: string
-  name: string
-}
+interface Employee { id: string; name: string }
 
 export function useEmployeeNames(orgId: string | null) {
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -15,7 +12,7 @@ export function useEmployeeNames(orgId: string | null) {
     supabase
       .from('employees')
       .select('id, name')
-      .eq('practice_id', orgId)
+      .eq('org_id', orgId)
       .then(({ data }) => setEmployees((data as Employee[]) ?? []))
   }, [orgId])
 

@@ -80,7 +80,7 @@ function MembershipTrackerInner() {
     const { data } = await supabase
       .from('membership_tracker')
       .select('*')
-      .eq('practice_id', orgId)
+      .eq('org_id', orgId)
       .order('week_start', { ascending: false })
       .limit(20)
     setRecords((data as MembershipEntry[]) ?? [])
@@ -114,7 +114,7 @@ function MembershipTrackerInner() {
     setSaving(true)
     setError(null)
     const payload = {
-      practice_id: orgId,
+      org_id: orgId,
       submitted_by: employeeId,
       week_start: form.week_start,
       week_end: form.week_end,

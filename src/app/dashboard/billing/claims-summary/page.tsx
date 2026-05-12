@@ -10,7 +10,7 @@ import RoleGuard from '@/components/RoleGuard'
 
 interface ClaimsSummaryEntry {
   id: string
-  practice_id: string
+  org_id: string
   week_start: string
   week_end: string | null
   submitted_by: string | null
@@ -94,11 +94,12 @@ function ClaimsSummaryContent() {
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['claims-summary', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('weekly_claims_summary')
         .select('*')
-        .eq('practice_id', orgId!)
+        .eq('org_id', orgId!)
         .order('week_start', { ascending: false })
       if (error) throw error
       return data as ClaimsSummaryEntry[]
@@ -108,6 +109,7 @@ function ClaimsSummaryContent() {
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.from('employees').select('id, name').eq('org_id', orgId!).order('name')
       if (error) throw error
@@ -123,7 +125,7 @@ function ClaimsSummaryContent() {
       const denied    = p.total_claims_denied    ? Number(p.total_claims_denied)    : null
       const denialRate = submitted && denied !== null ? Math.round((denied / submitted) * 100 * 10) / 10 : null
       const { error } = await supabase.from('weekly_claims_summary').insert({
-        practice_id: orgId,
+        org_id: orgId,
         week_start: p.week_start,
         week_end: p.week_end || null,
         submitted_by: p.submitted_by || null,

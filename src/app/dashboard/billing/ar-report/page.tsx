@@ -10,7 +10,7 @@ import RoleGuard from '@/components/RoleGuard'
 
 interface ARReportEntry {
   id: string
-  practice_id: string
+  org_id: string
   report_date: string
   submitted_by: string | null
   total_ar_balance: number | null
@@ -74,11 +74,12 @@ function ARReportContent() {
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ['ar-report', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('ar_report_submissions')
         .select('*')
-        .eq('practice_id', orgId!)
+        .eq('org_id', orgId!)
         .order('report_date', { ascending: false })
       if (error) throw error
       return data as ARReportEntry[]
@@ -88,6 +89,7 @@ function ARReportContent() {
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase.from('employees').select('id, name').eq('org_id', orgId!).order('name')
       if (error) throw error
@@ -103,7 +105,7 @@ function ARReportContent() {
       const total  = p.total_ar_balance ? Number(p.total_ar_balance) : null
       const pct    = over90 !== null && total && total > 0 ? Math.round((over90 / total) * 100 * 10) / 10 : null
       const { error } = await supabase.from('ar_report_submissions').insert({
-        practice_id: orgId,
+        org_id: orgId,
         report_date: p.report_date,
         submitted_by: p.submitted_by || null,
         total_ar_balance: total,

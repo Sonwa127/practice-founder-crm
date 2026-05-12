@@ -44,6 +44,7 @@ function CoreFunctionsContent() {
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['core-functions', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('core_functions')

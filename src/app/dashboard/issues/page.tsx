@@ -308,6 +308,7 @@ export default function IssuesPage() {
   const { data: issues, isLoading, refetch } = useQuery<Issue[]>({
     queryKey: ['issues', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('issues_breakdowns').select('*').eq('org_id', orgId!)

@@ -14,9 +14,9 @@ interface WeeklyReport {
   week_start: string
   week_end: string
   is_completed: boolean
-  bills_expenses_paid: number
+  bills_and_expenses_paid: number
   other_deposits: number
-  cash_card_check: number
+  cash_card_check_payments: number
   insurance_payments: number
   revenue_collected: number
   payroll_for_week: number
@@ -24,9 +24,9 @@ interface WeeklyReport {
   owner_pay_for_week: number
   owner_pay_distributed: boolean
   payroll_starting_balance: number
-  blocked_money_notes: string | null
-  staffing_gaps_notes: string | null
-  one_thing_to_fix: string | null
+  what_blocked_money: string | null
+  staffing_gaps: string | null
+  one_thing_to_fix_next_week: string | null
   total_labour_costs: number
   end_of_week_balance: number
   created_at: string
@@ -36,9 +36,9 @@ const emptyForm = {
   week_start: '',
   week_end: '',
   is_completed: false,
-  bills_expenses_paid: '',
+  bills_and_expenses_paid: '',
   other_deposits: '',
-  cash_card_check: '',
+  cash_card_check_payments: '',
   insurance_payments: '',
   revenue_collected: '',
   payroll_for_week: '',
@@ -46,9 +46,9 @@ const emptyForm = {
   owner_pay_for_week: '',
   owner_pay_distributed: false,
   payroll_starting_balance: '',
-  blocked_money_notes: '',
-  staffing_gaps_notes: '',
-  one_thing_to_fix: '',
+  what_blocked_money: '',
+  staffing_gaps: '',
+  one_thing_to_fix_next_week: '',
 }
 
 type FormData = typeof emptyForm
@@ -69,7 +69,7 @@ function pct(num: number | string, den: number | string): string {
 function calcEndOfWeek(f: FormData): number {
   const payrollStart = parseFloat(f.payroll_starting_balance) || 0
   const rev = parseFloat(f.revenue_collected) || 0
-  const bills = parseFloat(f.bills_expenses_paid) || 0
+  const bills = parseFloat(f.bills_and_expenses_paid) || 0
   const payroll = parseFloat(f.payroll_for_week) || 0
   const contractors = parseFloat(f.contractor_payments) || 0
   const ownerPay = parseFloat(f.owner_pay_for_week) || 0
@@ -133,7 +133,7 @@ function WeeklyFinancialInner() {
       const { data } = await supabase
         .from('weekly_financial_reports')
         .select('*')
-        .eq('practice_id', orgId)
+        .eq('org_id', orgId)
         .order('week_start', { ascending: false })
       return (data as WeeklyReport[]) ?? []
     },
@@ -167,9 +167,9 @@ function WeeklyFinancialInner() {
       week_start: r.week_start,
       week_end: r.week_end,
       is_completed: r.is_completed,
-      bills_expenses_paid: String(r.bills_expenses_paid),
+      bills_and_expenses_paid: String(r.bills_and_expenses_paid),
       other_deposits: String(r.other_deposits),
-      cash_card_check: String(r.cash_card_check),
+      cash_card_check_payments: String(r.cash_card_check_payments),
       insurance_payments: String(r.insurance_payments),
       revenue_collected: String(r.revenue_collected),
       payroll_for_week: String(r.payroll_for_week),
@@ -177,9 +177,9 @@ function WeeklyFinancialInner() {
       owner_pay_for_week: String(r.owner_pay_for_week),
       owner_pay_distributed: r.owner_pay_distributed,
       payroll_starting_balance: String(r.payroll_starting_balance),
-      blocked_money_notes: r.blocked_money_notes ?? '',
-      staffing_gaps_notes: r.staffing_gaps_notes ?? '',
-      one_thing_to_fix: r.one_thing_to_fix ?? '',
+      what_blocked_money: r.what_blocked_money ?? '',
+      staffing_gaps: r.staffing_gaps ?? '',
+      one_thing_to_fix_next_week: r.one_thing_to_fix_next_week ?? '',
     })
     setEditId(r.id)
     setShowForm(true)
@@ -200,14 +200,14 @@ function WeeklyFinancialInner() {
     setSaving(true)
     setError(null)
     const payload = {
-      practice_id: orgId,
+      org_id: orgId,
       submitted_by: employeeId,
       week_start: form.week_start,
       week_end: form.week_end,
       is_completed: form.is_completed,
-      bills_expenses_paid: parseFloat(form.bills_expenses_paid) || 0,
+      bills_and_expenses_paid: parseFloat(form.bills_and_expenses_paid) || 0,
       other_deposits: parseFloat(form.other_deposits) || 0,
-      cash_card_check: parseFloat(form.cash_card_check) || 0,
+      cash_card_check_payments: parseFloat(form.cash_card_check_payments) || 0,
       insurance_payments: parseFloat(form.insurance_payments) || 0,
       revenue_collected: parseFloat(form.revenue_collected) || 0,
       payroll_for_week: parseFloat(form.payroll_for_week) || 0,
@@ -215,9 +215,9 @@ function WeeklyFinancialInner() {
       owner_pay_for_week: parseFloat(form.owner_pay_for_week) || 0,
       owner_pay_distributed: form.owner_pay_distributed,
       payroll_starting_balance: parseFloat(form.payroll_starting_balance) || 0,
-      blocked_money_notes: form.blocked_money_notes || null,
-      staffing_gaps_notes: form.staffing_gaps_notes || null,
-      one_thing_to_fix: form.one_thing_to_fix || null,
+      what_blocked_money: form.what_blocked_money || null,
+      staffing_gaps: form.staffing_gaps || null,
+      one_thing_to_fix_next_week: form.one_thing_to_fix_next_week || null,
     }
     if (editId) {
       await supabase.from('weekly_financial_reports').update(payload).eq('id', editId)
@@ -313,7 +313,7 @@ function WeeklyFinancialInner() {
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField label="Cash, Card, or Check Payments ($)" required tooltip="Patient payments collected in-office via cash, card, or check. Do not include insurance here.">
-                  <input type="number" step="0.01" min="0" value={form.cash_card_check} onChange={e => setField('cash_card_check', e.target.value)} className={inputClass} placeholder="0.00" />
+                  <input type="number" step="0.01" min="0" value={form.cash_card_check_payments} onChange={e => setField('cash_card_check_payments', e.target.value)} className={inputClass} placeholder="0.00" />
                 </FormField>
                 <FormField label="Insurance Payments ($)" required tooltip="Total insurance payments deposited or posted this week.">
                   <input type="number" step="0.01" min="0" value={form.insurance_payments} onChange={e => setField('insurance_payments', e.target.value)} className={inputClass} placeholder="0.00" />
@@ -342,7 +342,7 @@ function WeeklyFinancialInner() {
                   <input type="number" step="0.01" min="0" value={form.owner_pay_for_week} onChange={e => setField('owner_pay_for_week', e.target.value)} className={inputClass} placeholder="0.00" />
                 </FormField>
                 <FormField label="Bills and Expenses Paid ($)" required tooltip="Total bills and operating expenses paid out this week.">
-                  <input type="number" step="0.01" min="0" value={form.bills_expenses_paid} onChange={e => setField('bills_expenses_paid', e.target.value)} className={inputClass} placeholder="0.00" />
+                  <input type="number" step="0.01" min="0" value={form.bills_and_expenses_paid} onChange={e => setField('bills_and_expenses_paid', e.target.value)} className={inputClass} placeholder="0.00" />
                 </FormField>
               </div>
 
@@ -381,13 +381,13 @@ function WeeklyFinancialInner() {
               <SectionBanner title="REFLECTION — Blockers & Next Steps" description="These fields help the Practice Founder team identify where money slowed down and what needs attention next week." />
               <div className="space-y-4">
                 <FormField label="What Blocked Money This Week?" tooltip="Any payments delayed, holds, or unexpected gaps in cash flow this week.">
-                  <textarea value={form.blocked_money_notes} onChange={e => setField('blocked_money_notes', e.target.value)} rows={2} className={inputClass} placeholder="Any payments delayed, holds, or unexpected gaps…" />
+                  <textarea value={form.what_blocked_money} onChange={e => setField('what_blocked_money', e.target.value)} rows={2} className={inputClass} placeholder="Any payments delayed, holds, or unexpected gaps…" />
                 </FormField>
                 <FormField label="What Staffing Gaps Were There?" tooltip="Any gaps that affected revenue, operations, or billing this week.">
-                  <textarea value={form.staffing_gaps_notes} onChange={e => setField('staffing_gaps_notes', e.target.value)} rows={2} className={inputClass} placeholder="Any gaps that affected revenue or billing…" />
+                  <textarea value={form.staffing_gaps} onChange={e => setField('staffing_gaps', e.target.value)} rows={2} className={inputClass} placeholder="Any gaps that affected revenue or billing…" />
                 </FormField>
                 <FormField label="One Thing to Fix Next Week" tooltip="The single highest-priority improvement for next week. Choose one item only.">
-                  <input type="text" value={form.one_thing_to_fix} onChange={e => setField('one_thing_to_fix', e.target.value)} className={inputClass} placeholder="One priority improvement item…" />
+                  <input type="text" value={form.one_thing_to_fix_next_week} onChange={e => setField('one_thing_to_fix_next_week', e.target.value)} className={inputClass} placeholder="One priority improvement item…" />
                 </FormField>
               </div>
 
@@ -459,7 +459,7 @@ function WeeklyFinancialInner() {
                   <div className="border-t border-[#2e2016] p-4 space-y-4">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                       {[
-                        ['Cash/Card/Check', currency(r.cash_card_check)],
+                        ['Cash/Card/Check', currency(r.cash_card_check_payments)],
                         ['Insurance Payments', currency(r.insurance_payments)],
                         ['Other Deposits', currency(r.other_deposits)],
                         ['Revenue Collected', currency(r.revenue_collected)],
@@ -467,7 +467,7 @@ function WeeklyFinancialInner() {
                         ['Contractors', currency(r.contractor_payments)],
                         ['Labour Costs', currency(r.total_labour_costs)],
                         ['Owner Pay', currency(r.owner_pay_for_week)],
-                        ['Bills & Expenses', currency(r.bills_expenses_paid)],
+                        ['Bills & Expenses', currency(r.bills_and_expenses_paid)],
                         ['Payroll Start Balance', currency(r.payroll_starting_balance)],
                         ['End of Week Balance', currency(r.end_of_week_balance)],
                         ['Owner Pay Distributed', r.owner_pay_distributed ? 'Yes' : 'No'],
@@ -478,16 +478,16 @@ function WeeklyFinancialInner() {
                         </div>
                       ))}
                     </div>
-                    {(r.blocked_money_notes || r.staffing_gaps_notes || r.one_thing_to_fix) && (
+                    {(r.what_blocked_money || r.staffing_gaps || r.one_thing_to_fix_next_week) && (
                       <div className="space-y-2 pt-2 border-t border-[#2e2016]">
-                        {r.blocked_money_notes && (
-                          <div><span className="text-xs text-[#c4b49a]/50">Blocked Money:</span> <span className="text-sm text-white">{r.blocked_money_notes}</span></div>
+                        {r.what_blocked_money && (
+                          <div><span className="text-xs text-[#c4b49a]/50">Blocked Money:</span> <span className="text-sm text-white">{r.what_blocked_money}</span></div>
                         )}
-                        {r.staffing_gaps_notes && (
-                          <div><span className="text-xs text-[#c4b49a]/50">Staffing Gaps:</span> <span className="text-sm text-white">{r.staffing_gaps_notes}</span></div>
+                        {r.staffing_gaps && (
+                          <div><span className="text-xs text-[#c4b49a]/50">Staffing Gaps:</span> <span className="text-sm text-white">{r.staffing_gaps}</span></div>
                         )}
-                        {r.one_thing_to_fix && (
-                          <div><span className="text-xs text-[#c4b49a]/50">Fix Next Week:</span> <span className="text-sm text-white">{r.one_thing_to_fix}</span></div>
+                        {r.one_thing_to_fix_next_week && (
+                          <div><span className="text-xs text-[#c4b49a]/50">Fix Next Week:</span> <span className="text-sm text-white">{r.one_thing_to_fix_next_week}</span></div>
                         )}
                       </div>
                     )}
