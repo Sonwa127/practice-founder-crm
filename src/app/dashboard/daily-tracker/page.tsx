@@ -362,8 +362,9 @@ export default function DailyTrackerPage() {
     const isPhysicianName = (n: string) => n.includes('dr') || n.includes('physician') || n.includes('evans') || n.includes('doctor');
     if (submitterFilter === 'receptionist') {
       r = r.filter(row => !isPhysicianName((row.submitted_by ?? '').toLowerCase()));
+    } else if (submitterFilter === 'dr_evans') {
+      r = r.filter(row => isPhysicianName((row.submitted_by ?? '').toLowerCase()));
     }
-    // physician view shows all records — no filter applied
     if (search) { const q = search.toLowerCase(); r = r.filter(row => Object.values(row).some(v => String(v).toLowerCase().includes(q))); }
     if (dateRange.from) r = r.filter(row => row.date >= dateRange.from);
     if (dateRange.to)   r = r.filter(row => row.date <= dateRange.to);
