@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useOrgUser } from '@/lib/useOrgUser'
+import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
 import {
   ChevronLeft, ChevronRight, LayoutDashboard, TrendingUp,
   CheckSquare, MessageSquare, Building2, CreditCard, Settings,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, LogOut,
 } from 'lucide-react'
 
 interface NavItem { label: string; href: string; roles: string[] }
@@ -93,6 +94,13 @@ function NavContent({
   })
 
   const toggle = (title: string) => setOpenSections(p => ({ ...p, [title]: !p[title] }))
+
+  const router = useRouter()
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   const visibleSections = NAV.map(s => ({
     ...s,
@@ -221,6 +229,12 @@ function NavContent({
               <div className="bg-[#1e1409] border border-[#3a2a1a] rounded-xl px-3 py-2 shadow-2xl min-w-max">
                 <div className="text-xs text-white font-medium">{employeeName ?? 'Unknown'}</div>
                 <div className="text-[10px] text-[#c4b49a]/50 capitalize mt-0.5">{role ?? 'staff'}</div>
+                <button
+                  onClick={handleSignOut}
+                  className="mt-2 flex items-center gap-1.5 text-[10px] text-red-400/70 hover:text-red-400 transition-colors w-full"
+                >
+                  <LogOut className="w-3 h-3" />Sign out
+                </button>
               </div>
             </div>
           </div>
@@ -233,6 +247,13 @@ function NavContent({
               <div className="text-white text-xs font-medium truncate">{employeeName ?? 'Unknown'}</div>
               <div className="text-[#c4b49a]/50 text-[10px] capitalize">{role ?? 'staff'}</div>
             </div>
+            <button
+              onClick={handleSignOut}
+              title="Sign out"
+              className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-[#c4b49a]/40 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
       </div>
