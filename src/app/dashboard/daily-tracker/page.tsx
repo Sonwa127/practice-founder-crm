@@ -334,6 +334,13 @@ export default function DailyTrackerPage() {
     return 'all';
   });
 
+  // Sync filter when URL param changes (Next.js reuses component on navigation)
+  useEffect(() => {
+    if (lockedView === 'physician') { setSubmitterFilter('dr_evans'); setPage(1); }
+    else if (lockedView === 'receptionist') { setSubmitterFilter('receptionist'); setPage(1); }
+    else { setSubmitterFilter('all'); setPage(1); }
+  }, [lockedView]);
+
   const dragColIdx   = useRef<number | null>(null);
   const dragOverIdx  = useRef<number | null>(null);
   const resizingCol  = useRef<string | null>(null);
