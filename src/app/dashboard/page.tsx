@@ -1,27 +1,16 @@
 'use client'
 
 /**
- * Practice Founder CRM — KPI Dashboard (v3)
- *
- * Self-contained: fetches org_id directly from user_profiles
- * rather than importing useOrgUser / AccessGuard, which eliminates
- * the two "cannot find module" TS errors entirely.
- *
- * DB column names (verified):
- *   payroll_for_week, owner_pay_for_week, owner_pay_distributed
- *   payroll_pct_of_revenue (stored formula column — not recomputed)
+ * Practice Founder CRM — KPI Dashboard (v4 — FINAL)
+ * Self-contained: no useOrgUser / AccessGuard imports.
+ * Column names match verified DB schema.
  */
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useQuery } from '@tanstack/react-query'
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -54,7 +43,7 @@ interface SparkPoint {
   revenue_collected: number
 }
 
-// ─── Org + access hook (inline — no external dependency) ─────────────────────
+// ─── Inline org + access hook ─────────────────────────────────────────────────
 
 function useOrgAccess() {
   const supabase = createClient()
@@ -71,13 +60,19 @@ function useOrgAccess() {
 
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('org_id')
+        .select('org_id, role')
         .eq('id', user.id)
         .maybeSingle()
 
       if (!profile?.org_id) { setState({ orgId: null, hasAccess: false, loading: false }); return }
 
-      // Check dashboard_access flag on employees table
+      // pf_admin and pf_team have platform-level access — never blocked by client flags
+      const isPlatformAdmin = profile.role === 'pf_admin' || profile.role === 'pf_team'
+      if (isPlatformAdmin) {
+        setState({ orgId: profile.org_id, hasAccess: true, loading: false })
+        return
+      }
+
       const { data: emp } = await supabase
         .from('employees')
         .select('dashboard_access')
@@ -111,7 +106,7 @@ function getStatus(
   return 'below-target'
 }
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtShort(iso: string) {
   try { return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }
@@ -121,16 +116,13 @@ function fmtLong(iso: string) {
   try { return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }
   catch { return iso }
 }
-
-// ─── Value formatters ─────────────────────────────────────────────────────────
-
 const fmt = {
   pct:    (v: number | null) => v !== null ? `${v}%` : null,
   dollar: (v: number | null) => v !== null ? `$${Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : null,
   bool:   (v: boolean | null) => v === null ? null : v ? 'Yes' : 'No',
 }
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
+// ─── UI components ────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<MetricStatus, { label: string; dot: string; badge: string }> = {
   'on-target':    { label: 'On Target',    dot: 'bg-emerald-500', badge: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' },
@@ -149,11 +141,16 @@ function StatusBadge({ status }: { status: MetricStatus }) {
   )
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
+function SectionHeader({ title, icon }: { title: string; icon: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-4">
+      <span>{icon}</span>
+      <h2 className="text-xs font-semibold uppercase tracking-widest text-[#c8843a]">{title}</h2>
+    </div>
+  )
+}
 
-function KpiCard({
-  label, owner, value, valueNote, prior, target, status, alert, children,
-}: {
+function KpiCard({ label, owner, value, valueNote, prior, target, status, alert, children }: {
   label: string; owner: string; value: string | null; valueNote?: string
   prior?: string | null; target: string; status: MetricStatus; alert?: string
   children?: React.ReactNode
@@ -171,54 +168,34 @@ function KpiCard({
         </div>
         <StatusBadge status={status} />
       </div>
-
       <div className="flex items-end gap-3">
         <span className="text-3xl font-bold text-white tabular-nums leading-none">{value ?? '—'}</span>
         {valueNote && <span className="text-sm text-[#7a6a56] mb-0.5">{valueNote}</span>}
       </div>
-
       <div className="flex flex-wrap gap-4 text-xs text-[#7a6a56]">
         {prior !== undefined && <span>Prior: <span className="text-[#c4b49a]">{prior ?? '—'}</span></span>}
         <span>Target: <span className="text-[#c4b49a]">{target}</span></span>
       </div>
-
       {children}
-
       {(status === 'critical' || status === 'below-target') && alert && (
         <div className={`flex items-start gap-2 rounded-lg p-2.5 ${
-          status === 'critical'
-            ? 'bg-red-500/10 border border-red-500/20'
-            : 'bg-amber-400/10 border border-amber-400/20'
+          status === 'critical' ? 'bg-red-500/10 border border-red-500/20' : 'bg-amber-400/10 border border-amber-400/20'
         }`}>
           <span className={`text-xs mt-0.5 ${status === 'critical' ? 'text-red-400' : 'text-amber-400'}`}>
             {status === 'critical' ? '⚠' : '↓'}
           </span>
-          <p className={`text-xs leading-snug ${status === 'critical' ? 'text-red-400' : 'text-amber-400'}`}>
-            {alert}
-          </p>
+          <p className={`text-xs leading-snug ${status === 'critical' ? 'text-red-400' : 'text-amber-400'}`}>{alert}</p>
         </div>
       )}
     </div>
   )
 }
 
-function SectionHeader({ title, icon }: { title: string; icon: string }) {
-  return (
-    <div className="flex items-center gap-2 mb-4">
-      <span>{icon}</span>
-      <h2 className="text-xs font-semibold uppercase tracking-widest text-[#c8843a]">{title}</h2>
-    </div>
-  )
-}
-
-// ─── Sparkline ────────────────────────────────────────────────────────────────
-
 function RevenueTrendChart({ data }: { data: SparkPoint[] }) {
   const chartData = [...data].slice(0, 8).reverse().map(d => ({
     week: fmtShort(d.week_start),
     revenue: Number(d.revenue_collected),
   }))
-
   return (
     <div className="h-20 w-full mt-1">
       <ResponsiveContainer width="100%" height="100%">
@@ -227,11 +204,7 @@ function RevenueTrendChart({ data }: { data: SparkPoint[] }) {
           <YAxis hide />
           <Tooltip
             contentStyle={{ background: '#1f1a14', border: '1px solid #2e2016', borderRadius: 8, fontSize: 12, color: '#c4b49a' }}
-            formatter={(value) => {
-              // Cast to number safely — avoids recharts ValueType inference error
-              const n = Number(value)
-              return [`$${isNaN(n) ? '—' : n.toLocaleString()}`, 'Revenue'] as [string, string]
-            }}
+            formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue'] as [string, string]}
           />
           <Line type="monotone" dataKey="revenue" stroke="#c8843a" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#c8843a' }} />
         </LineChart>
@@ -239,8 +212,6 @@ function RevenueTrendChart({ data }: { data: SparkPoint[] }) {
     </div>
   )
 }
-
-// ─── Empty / loading / access denied states ───────────────────────────────────
 
 function Spinner() {
   return (
@@ -267,14 +238,12 @@ function AccessDenied() {
     <div className="flex flex-col items-center justify-center py-24 text-center gap-3">
       <div className="w-12 h-12 rounded-xl bg-[#2e2016] flex items-center justify-center text-2xl">🔒</div>
       <p className="text-[#c4b49a] font-medium">Access restricted</p>
-      <p className="text-[#7a6a56] text-sm max-w-xs">
-        You need dashboard access to view this page. Contact your practice manager.
-      </p>
+      <p className="text-[#7a6a56] text-sm max-w-xs">You need dashboard access to view this page. Contact your practice manager.</p>
     </div>
   )
 }
 
-// ─── Main dashboard ───────────────────────────────────────────────────────────
+// ─── Dashboard content ────────────────────────────────────────────────────────
 
 function DashboardContent({ orgId }: { orgId: string }) {
   const supabase = createClient()
@@ -313,20 +282,18 @@ function DashboardContent({ orgId }: { orgId: string }) {
 
   const s = summary
 
-  // ── Statuses ──────────────────────────────────────────────────
+  const revenueStatus     = getStatus(s.revenue_wow_pct,            { onTarget: v => v >= -10, critical: v => v <= -20 })
+  const collectionsStatus = getStatus(s.collection_rate,            { onTarget: v => v >= 95,  critical: v => v < 85 })
+  const denialStatus      = getStatus(s.denial_rate_pct,            { onTarget: v => v < 5,    critical: v => v > 10 })
+  const chargelagStatus   = getStatus(s.charge_lag_within_24hr_pct, { onTarget: v => v >= 95,  critical: v => v < 70 })
+  const notesStatus       = getStatus(s.notes_closed_same_day_pct,  { onTarget: v => v >= 100, critical: v => v < 90 })
+  const referralStatus    = getStatus(s.referral_completion_rate,   { onTarget: v => v >= 100, critical: v => v < 85 })
+  const taskStatus        = getStatus(s.task_completion_rate_pct,   { onTarget: v => v >= 95,  critical: v => v < 80 })
+  const payrollStatus     = getStatus(s.payroll_pct_of_revenue,     { onTarget: v => v <= 40,  critical: v => v > 55 })
 
-  const revenueStatus     = getStatus(s.revenue_wow_pct,            { onTarget: v => v >= -10,  critical: v => v <= -20 })
-  const collectionsStatus = getStatus(s.collection_rate,            { onTarget: v => v >= 95,   critical: v => v < 85 })
-  const denialStatus      = getStatus(s.denial_rate_pct,            { onTarget: v => v < 5,     critical: v => v > 10 })
-  const chargelagStatus   = getStatus(s.charge_lag_within_24hr_pct, { onTarget: v => v >= 95,   critical: v => v < 70 })
-  const notesStatus       = getStatus(s.notes_closed_same_day_pct,  { onTarget: v => v >= 100,  critical: v => v < 90 })
-  const referralStatus    = getStatus(s.referral_completion_rate,   { onTarget: v => v >= 100,  critical: v => v < 85 })
-  const taskStatus        = getStatus(s.task_completion_rate_pct,   { onTarget: v => v >= 95,   critical: v => v < 80 })
-  const payrollStatus     = getStatus(s.payroll_pct_of_revenue,     { onTarget: v => v <= 40,   critical: v => v > 55 })
-
-  const arTotal    = (s.denials_still_open ?? 0) + (s.denials_resolved ?? 0)
-  const arOpenPct  = arTotal > 0 ? Math.round(((s.denials_still_open ?? 0) / arTotal) * 100) : null
-  const arStatus   = getStatus(arOpenPct, { onTarget: v => v < 5, critical: v => v > 10 })
+  const arTotal   = (s.denials_still_open ?? 0) + (s.denials_resolved ?? 0)
+  const arOpenPct = arTotal > 0 ? Math.round(((s.denials_still_open ?? 0) / arTotal) * 100) : null
+  const arStatus  = getStatus(arOpenPct, { onTarget: v => v < 5, critical: v => v > 10 })
 
   const ownerStatus: MetricStatus = s.owner_pay_distributed === null ? 'no-data'
     : s.owner_pay_distributed ? 'on-target' : 'critical'
@@ -336,28 +303,24 @@ function DashboardContent({ orgId }: { orgId: string }) {
   const criticalCount = allStatuses.filter(x => x === 'critical').length
   const belowCount    = allStatuses.filter(x => x === 'below-target').length
   const overall       = criticalCount > 0 ? 'critical' : belowCount > 0 ? 'below-target' : 'on-target'
-
-  const overallLabel = overall === 'critical'      ? '🔴 Red — Threshold alert triggered'
-    : overall === 'below-target' ? '🟡 Amber — Metrics below target'
-    : '🟢 Green — All metrics on target'
+  const overallLabel  = overall === 'critical' ? '🔴 Red — Threshold alert triggered'
+    : overall === 'below-target' ? '🟡 Amber — Metrics below target' : '🟢 Green — All metrics on target'
 
   return (
     <div className="space-y-8">
 
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">Weekly KPI Dashboard</h1>
           <p className="text-[#7a6a56] text-sm mt-0.5">Monday review · Dr. Akita &amp; Mykael</p>
         </div>
         <div className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-          overall === 'critical'      ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+          overall === 'critical' ? 'bg-red-500/10 text-red-400 border border-red-500/20'
           : overall === 'below-target' ? 'bg-amber-400/10 text-amber-400 border border-amber-400/20'
           : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
         }`}>{overallLabel}</div>
       </div>
 
-      {/* Week banner */}
       {s.week_start && s.week_end && (
         <div className="flex items-center gap-2 text-xs text-[#7a6a56] bg-[#1f1a14] border border-[#2e2016] rounded-lg px-3 py-2">
           <span className="text-[#c8843a]">📅</span>
@@ -365,7 +328,6 @@ function DashboardContent({ orgId }: { orgId: string }) {
         </div>
       )}
 
-      {/* REVENUE */}
       <section>
         <SectionHeader title="Revenue" icon="💰" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -382,7 +344,6 @@ function DashboardContent({ orgId }: { orgId: string }) {
         </div>
       </section>
 
-      {/* BILLING */}
       <section>
         <SectionHeader title="Billing" icon="🧾" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -395,7 +356,6 @@ function DashboardContent({ orgId }: { orgId: string }) {
         </div>
       </section>
 
-      {/* AR */}
       <section>
         <SectionHeader title="Accounts Receivable" icon="📋" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -412,7 +372,6 @@ function DashboardContent({ orgId }: { orgId: string }) {
         </div>
       </section>
 
-      {/* OPERATIONS */}
       <section>
         <SectionHeader title="Operations" icon="⚙️" />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -431,7 +390,6 @@ function DashboardContent({ orgId }: { orgId: string }) {
         </div>
       </section>
 
-      {/* PAYROLL */}
       <section>
         <SectionHeader title="Payroll &amp; Owner Draw" icon="💼" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -446,7 +404,6 @@ function DashboardContent({ orgId }: { orgId: string }) {
         </div>
       </section>
 
-      {/* CRITICAL BANNER */}
       {criticalCount > 0 && (
         <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -456,7 +413,7 @@ function DashboardContent({ orgId }: { orgId: string }) {
             </h3>
           </div>
           <p className="text-red-300/80 text-xs leading-relaxed">
-            These metrics have breached the threshold level and require action today — not at the next Monday review.
+            These metrics require action today — not at the next Monday review.
           </p>
         </div>
       )}
@@ -469,10 +426,8 @@ function DashboardContent({ orgId }: { orgId: string }) {
 
 export default function DashboardPage() {
   const { orgId, hasAccess, loading } = useOrgAccess()
-
   if (loading)    return <div className="p-6"><Spinner /></div>
   if (!hasAccess) return <div className="p-6 max-w-5xl mx-auto"><AccessDenied /></div>
-
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <DashboardContent orgId={orgId!} />
