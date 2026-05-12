@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { useOrgUser } from '@/lib/useOrgUser'
 import { useEmployeeNames } from '@/lib/useEmployeeNames'
@@ -123,8 +124,22 @@ function SectionBanner({ title, description }: { title: string, description: str
 function WeeklyFinancialInner() {
   const { orgId, employeeId, isLoading: userLoading } = useOrgUser()
   const { resolveName } = useEmployeeNames(orgId)
-  const [records, setRecords] = useState<WeeklyReport[]>([])
-  const [loading, setLoading] = useState(true)
+  const qc = useQueryClient()
+  const { data: records = [], isLoading: loading } = useQuery({
+    queryKey: ['weekly_financial_reports', orgId],
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('weekly_financial_reports')
+        .select('*')
+        .eq('practice_id', orgId)
+        .order('week_start', { ascending: false })
+      return (data as WeeklyReport[]) ?? []
+    },
+  })
+
+  function invalidate() { qc.invalidateQueries({ queryKey: ['weekly_financial_reports', orgId] }) }
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<FormData>(emptyForm)
@@ -134,19 +149,7 @@ function WeeklyFinancialInner() {
   const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
-  async function loadRecords() {
-    if (!orgId) return
-    setLoading(true)
-    const { data } = await supabase
-      .from('weekly_financial_reports')
-      .select('*')
-      .eq('practice_id', orgId)
-      .order('week_start', { ascending: false })
-    setRecords((data as WeeklyReport[]) ?? [])
-    setLoading(false)
-  }
 
-  useEffect(() => { loadRecords() }, [orgId])
 
   function setField(key: keyof FormData, value: string | boolean) {
     setForm(prev => ({ ...prev, [key]: value }))
@@ -223,7 +226,7 @@ function WeeklyFinancialInner() {
     }
     setSaving(false)
     setShowForm(false)
-    loadRecords()
+    invalidate()
   }
 
   async function bulkDelete() {
@@ -231,7 +234,7 @@ function WeeklyFinancialInner() {
     if (!confirm(`Delete ${selected.size} record(s)?`)) return
     await supabase.from('weekly_financial_reports').delete().in('id', Array.from(selected))
     setSelected(new Set())
-    loadRecords()
+    invalidate()
   }
 
   function toggleSelect(id: string) {
@@ -246,10 +249,10 @@ function WeeklyFinancialInner() {
   const endOfWeek = calcEndOfWeek(form)
   const payrollPct = pct(form.payroll_for_week, form.revenue_collected)
 
-  if (userLoading || loading) return <div className="p-8 text-[#c4b49a] animate-pulse">Loading…</div>
+  if (userLoading) return <div className="p-8 text-[#c4b49a] animate-pulse">Loading…</div>
 
   return (
-    <div className="min-h-screen bg-[#1a1410] text-[#c4b49a]">
+    <div className="bg-[#1a1410] text-[#c4b49a]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
 
         {/* Header */}
@@ -290,10 +293,10 @@ function WeeklyFinancialInner() {
               <SectionBanner title="GENERAL — Submission Details" description="Enter the week this report covers. You can save progress and return later before marking it complete." />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField label="Week Start" required>
-                  <input type="date" value={form.week_start} onChange={e => setField('week_start', e.target.value)} className={inputClass} required />
+                  <input type="date" value={form.week_start} onChange={e => setField('week_start', e.target.value)} className={inputClass} required autoComplete="off" />
                 </FormField>
                 <FormField label="Week End" required>
-                  <input type="date" value={form.week_end} onChange={e => setField('week_end', e.target.value)} className={inputClass} required />
+                  <input type="date" value={form.week_end} onChange={e => setField('week_end', e.target.value)} className={inputClass} required autoComplete="off" />
                 </FormField>
                 <FormField label="Is This Completed?">
                   <label className="flex items-center gap-2 mt-2 cursor-pointer">
@@ -351,7 +354,7 @@ function WeeklyFinancialInner() {
               </div>
 
               {/* Auto-calculated display */}
-              <div className="grid grid-cols-3 gap-3 bg-[#2e2016]/30 rounded-lg p-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[#2e2016]/30 rounded-lg p-3">
                 <div>
                   <div className="text-xs text-[#c4b49a]/50 mb-0.5">Total Labour Costs (auto)</div>
                   <div className="text-white font-semibold">{currency(labourCosts)}</div>
@@ -406,7 +409,16 @@ function WeeklyFinancialInner() {
         )}
 
         {/* Records list */}
-        {records.length === 0 && !showForm ? (
+        {loading ? (
+          <div className="space-y-2">
+            {[1,2,3].map(i => (
+              <div key={i} className="border border-[#2e2016] rounded-xl bg-[#1e1810] p-4 animate-pulse">
+                <div className="h-4 bg-[#2e2016] rounded w-1/3 mb-2" />
+                <div className="h-3 bg-[#2e2016] rounded w-1/4" />
+              </div>
+            ))}
+          </div>
+        ) : records.length === 0 && !showForm ? (
           <div className="text-center py-16 text-[#c4b49a]/40 text-sm">No reports yet. Submit the first one above.</div>
         ) : (
           <div className="space-y-2">
