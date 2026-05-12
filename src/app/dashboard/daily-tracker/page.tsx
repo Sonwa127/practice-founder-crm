@@ -362,9 +362,8 @@ export default function DailyTrackerPage() {
     const isPhysicianName = (n: string) => n.includes('dr') || n.includes('physician') || n.includes('evans') || n.includes('doctor');
     if (submitterFilter === 'receptionist') {
       r = r.filter(row => !isPhysicianName((row.submitted_by ?? '').toLowerCase()));
-    } else if (submitterFilter === 'dr_evans') {
-      r = r.filter(row => isPhysicianName((row.submitted_by ?? '').toLowerCase()));
     }
+    // physician view shows all records — no filter applied
     if (search) { const q = search.toLowerCase(); r = r.filter(row => Object.values(row).some(v => String(v).toLowerCase().includes(q))); }
     if (dateRange.from) r = r.filter(row => row.date >= dateRange.from);
     if (dateRange.to)   r = r.filter(row => row.date <= dateRange.to);
@@ -921,7 +920,7 @@ export default function DailyTrackerPage() {
               <h2 className="font-bold text-white text-lg">New Daily Tracker Record</h2>
               <button onClick={() => setShowCreate(false)} className="text-[#6b5a47] hover:text-white"><X className="w-5 h-5" /></button>
             </div>
-            <NewTrackerForm onSave={row => { setLocalRows(p => [row, ...p]); setShowCreate(false); }} onCancel={() => setShowCreate(false)} />
+            <NewTrackerForm lockedView={lockedView} onSave={row => { setLocalRows(p => [row, ...p]); setShowCreate(false); }} onCancel={() => setShowCreate(false)} />
           </div>
         </div>
       )}
@@ -929,10 +928,11 @@ export default function DailyTrackerPage() {
   );
 }
 
-function NewTrackerForm({ onSave, onCancel }: { onSave: (row: DailyTrackerRow) => void; onCancel: () => void }) {
-  const [activeTab, setActiveTab] = useState<'receptionist' | 'dr_evans'>('receptionist');
+function NewTrackerForm({ onSave, onCancel, lockedView }: { onSave: (row: DailyTrackerRow) => void; onCancel: () => void; lockedView?: string | null }) {
+  const defaultTab = lockedView === 'physician' ? 'dr_evans' : 'receptionist';
+  const [activeTab, setActiveTab] = useState<'receptionist' | 'dr_evans'>(defaultTab);
   const [form, setForm] = useState({
-    submitted_by: 'Receptionist', date: new Date().toISOString().slice(0,10),
+    submitted_by: lockedView === 'physician' ? 'Physician' : 'Receptionist', date: new Date().toISOString().slice(0,10),
     awv:'', cpe:'', new_cpe:'', wwc:'', wwe:'', immigration_physical:'',
     new_patient_evaluation:'', follow_up_visits:'', six_visits:'', nurse_visits:'',
     ccm:'', telehealth_visits:'', wellness_evaluation:'', wellness_follow_up:'',
@@ -997,12 +997,19 @@ function NewTrackerForm({ onSave, onCancel }: { onSave: (row: DailyTrackerRow) =
   return (
     <div className="flex flex-col max-h-[80vh]">
       <div className="flex border-b border-[#2e2016] px-5">
-        {([{ key: 'receptionist', label: 'Receptionist KPIs', icon: User }, { key: 'dr_evans', label: 'Physician KPIs', icon: Stethoscope }] as { key: 'receptionist' | 'dr_evans'; label: string; icon: React.ElementType }[]).map(tab => (
-          <button key={tab.key} onClick={() => { setActiveTab(tab.key); set('submitted_by', tab.key === 'dr_evans' ? 'Physician' : 'Receptionist'); }}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition ${activeTab === tab.key ? 'border-[#c8843a] text-[#e8a05a]' : 'border-transparent text-[#6b5a47] hover:text-[#a08060]'}`}>
-            <tab.icon className="w-3.5 h-3.5" />{tab.label}
-          </button>
-        ))}
+        {!lockedView ? (
+          ([{ key: 'receptionist', label: 'Receptionist KPIs', icon: User }, { key: 'dr_evans', label: 'Physician KPIs', icon: Stethoscope }] as { key: 'receptionist' | 'dr_evans'; label: string; icon: React.ElementType }[]).map(tab => (
+            <button key={tab.key} onClick={() => { setActiveTab(tab.key); set('submitted_by', tab.key === 'dr_evans' ? 'Physician' : 'Receptionist'); }}
+              className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition ${activeTab === tab.key ? 'border-[#c8843a] text-[#e8a05a]' : 'border-transparent text-[#6b5a47] hover:text-[#a08060]'}`}>
+              <tab.icon className="w-3.5 h-3.5" />{tab.label}
+            </button>
+          ))
+        ) : (
+          <div className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 border-[#c8843a] text-[#e8a05a]`}>
+            {lockedView === 'physician' ? <Stethoscope className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
+            {lockedView === 'physician' ? 'Physician KPIs' : 'Receptionist KPIs'}
+          </div>
+        )}
       </div>
       <div className="overflow-y-auto px-5 py-4 space-y-4">
         <div className="grid grid-cols-3 gap-2">
